@@ -15,6 +15,17 @@ import (
 // promptFuncs provides helper functions available in prompt templates.
 var promptFuncs = template.FuncMap{
 	"json": func(s string) (map[string]any, error) {
+		s = strings.TrimSpace(s)
+		// Strip markdown code fences (```json ... ```)
+		if strings.HasPrefix(s, "```") {
+			if i := strings.Index(s, "\n"); i >= 0 {
+				s = s[i+1:]
+			}
+			if j := strings.LastIndex(s, "```"); j >= 0 {
+				s = s[:j]
+			}
+			s = strings.TrimSpace(s)
+		}
 		var m map[string]any
 		if err := json.Unmarshal([]byte(s), &m); err != nil {
 			return nil, fmt.Errorf("json parse: %w", err)
