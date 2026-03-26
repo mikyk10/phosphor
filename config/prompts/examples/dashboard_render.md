@@ -44,8 +44,8 @@ size: 800x480
       <span class="value">{{index $d "ip"}}</span>
     </div>
     <div class="card card-yellow">
-      <span class="label">Uptime</span>
-      <span class="value">{{index $d "uptime"}}</span>
+      <span class="label">WMO Code</span>
+      <span class="value">{{index $d "weather_code"}}</span>
     </div>
   </div>
   <div class="footer">Last updated: {{index $d "updated"}}</div>
