@@ -1,4 +1,6 @@
 ---
+#provider: ollama
+#model: qwen3.5:9b
 provider: openai
 model: gpt-4o
 temperature: 0.0

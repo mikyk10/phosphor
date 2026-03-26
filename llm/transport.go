@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 )
@@ -30,11 +31,12 @@ func (t *reasoningTransport) RoundTrip(req *http.Request) (*http.Response, error
 
 	// Skip injection for OpenAI — it rejects unknown fields like reasoning_effort.
 	if req.URL != nil && strings.Contains(req.URL.Host, "openai.com") {
+		slog.Debug("transport: skipping field injection (openai)", "host", req.URL.Host)
 		return t.base.RoundTrip(req)
 	}
 
 	body, err := io.ReadAll(req.Body)
-	req.Body.Close()
+	req.Body.Close() //nolint:errcheck
 	if err != nil {
 		return nil, err
 	}
@@ -57,5 +59,6 @@ func (t *reasoningTransport) RoundTrip(req *http.Request) (*http.Response, error
 
 	req.Body = io.NopCloser(bytes.NewReader(modified))
 	req.ContentLength = int64(len(modified))
+	slog.Debug("transport: injected fields", "host", req.URL.Host, "fields", t.extraFields)
 	return t.base.RoundTrip(req)
 }

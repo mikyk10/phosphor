@@ -71,7 +71,10 @@ func newChatTextExecutor(providers map[string]config.ProviderConfig, meta Prompt
 		anyllm.WithAPIKey(providerAPIKey(prov.APIKey)),
 		anyllm.WithHTTPClient(&http.Client{
 			Timeout:   timeout,
-			Transport: newReasoningTransport(http.DefaultTransport, map[string]any{"reasoning_effort": "none"}),
+			Transport: newReasoningTransport(http.DefaultTransport, map[string]any{
+				"reasoning_effort": "none",
+				"think":           false,
+			}),
 		}),
 	)
 	if err != nil {
@@ -112,7 +115,7 @@ func (e *chatTextExecutor) Execute(ctx context.Context, prompt string, images []
 		params.Temperature = &e.meta.Temperature
 	}
 
-	slog.Debug("llm: chat text", "model", e.meta.Model, "provider", e.meta.Provider)
+	slog.Debug("llm: chat text request", "model", e.meta.Model, "provider", e.meta.Provider, "images", len(images), "prompt_len", len(prompt), "reasoning_effort", "none")
 	callCtx, cancel := context.WithTimeout(ctx, e.timeout)
 	defer cancel()
 
@@ -231,7 +234,7 @@ func (e *chatImageExecutor) Execute(ctx context.Context, prompt string, images [
 	if err != nil {
 		return nil, fmt.Errorf("chat completion request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -323,7 +326,7 @@ func downloadImage(ctx context.Context, url string) ([]byte, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, "", err
@@ -492,7 +495,7 @@ func (e *imageEditExecutor) Execute(ctx context.Context, prompt string, images [
 	if err != nil {
 		return nil, fmt.Errorf("image edit request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
