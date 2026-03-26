@@ -39,11 +39,9 @@ type PipelineConfig struct {
 // PipelineDefaults holds default values for pipeline execution parameters.
 // Request parameters override these when provided.
 type PipelineDefaults struct {
-	Width       int    `yaml:"width"`
-	Height      int    `yaml:"height"`
-	Orientation string `yaml:"orientation"`
-	Quality     string `yaml:"quality"`
-	MaxTags     int    `yaml:"max_tags"`
+	Size    string `yaml:"size"`     // e.g. "1024x1024", "1536x1024"
+	Quality string `yaml:"quality"`  // e.g. "low", "high"
+	MaxTags int    `yaml:"max_tags"`
 }
 
 // StageConfig defines a single pipeline stage.

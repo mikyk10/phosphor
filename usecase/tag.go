@@ -53,7 +53,7 @@ func (u *tagUsecase) Run(ctx context.Context, input TagInput) (*TagOutput, error
 	}
 
 	d := pipelineCfg.Defaults
-	maxTags := withDefault(input.MaxTags, d.MaxTags)
+	maxTags := withDefaultInt(input.MaxTags, d.MaxTags)
 	if maxTags <= 0 {
 		maxTags = 10
 	}

@@ -4,7 +4,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/labstack/echo/v5"
@@ -24,25 +23,11 @@ func NewImageHandler(generate usecase.GenerateUsecase, remix usecase.RemixUsecas
 func (h *ImageHandler) Generate(c *echo.Context) error {
 	input := usecase.GenerateInput{
 		PipelineName: c.QueryParam("pipeline"),
-		Orientation:  c.QueryParam("orientation"),
+		Size:         c.QueryParam("size"),
 		Quality:      c.QueryParam("quality"),
 	}
-	if w := c.QueryParam("width"); w != "" {
-		v, err := strconv.Atoi(w)
-		if err != nil {
-			return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid width: " + w})
-		}
-		input.Width = v
-	}
-	if ht := c.QueryParam("height"); ht != "" {
-		v, err := strconv.Atoi(ht)
-		if err != nil {
-			return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid height: " + ht})
-		}
-		input.Height = v
-	}
 
-	slog.Info("handler: GET /image", "pipeline", input.PipelineName, "width", input.Width, "height", input.Height, "orientation", input.Orientation, "quality", input.Quality)
+	slog.Info("handler: GET /image", "pipeline", input.PipelineName, "size", input.Size, "quality", input.Quality)
 	start := time.Now()
 
 	result, err := h.generate.Run(c.Request().Context(), input)
@@ -76,24 +61,11 @@ func (h *ImageHandler) Remix(c *echo.Context) error {
 	input := usecase.RemixInput{
 		PipelineName: c.QueryParam("pipeline"),
 		SourceImage:  body,
+		Size:         c.QueryParam("size"),
 		Quality:      c.QueryParam("quality"),
 	}
-	if w := c.QueryParam("width"); w != "" {
-		v, err := strconv.Atoi(w)
-		if err != nil {
-			return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid width: " + w})
-		}
-		input.Width = v
-	}
-	if ht := c.QueryParam("height"); ht != "" {
-		v, err := strconv.Atoi(ht)
-		if err != nil {
-			return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid height: " + ht})
-		}
-		input.Height = v
-	}
 
-	slog.Info("handler: POST /image", "pipeline", input.PipelineName, "body_bytes", len(body), "quality", input.Quality)
+	slog.Info("handler: POST /image", "pipeline", input.PipelineName, "body_bytes", len(body), "size", input.Size, "quality", input.Quality)
 	start := time.Now()
 
 	result, err := h.remix.Run(c.Request().Context(), input)

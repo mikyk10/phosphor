@@ -29,14 +29,6 @@ func NewStageExecutor(providers map[string]config.ProviderConfig, meta PromptMet
 	// Apply runtime overrides.
 	if params.Size != "" {
 		meta.Size = params.Size
-	} else if params.Orientation != "" && meta.Size == "" {
-		// Map orientation to a default size if neither size nor frontmatter size is set.
-		switch params.Orientation {
-		case "portrait":
-			meta.Size = "1024x1536"
-		default: // landscape
-			meta.Size = "1536x1024"
-		}
 	}
 	if params.Quality != "" {
 		meta.Quality = params.Quality

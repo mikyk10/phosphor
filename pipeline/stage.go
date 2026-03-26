@@ -11,9 +11,8 @@ type StageExecutor interface {
 // ExecutionParams holds runtime parameters that override prompt frontmatter.
 // Zero values mean "use frontmatter default".
 type ExecutionParams struct {
-	Size        string // e.g. "1024x1024", "1536x1024"
-	Quality     string // e.g. "low", "high"
-	Orientation string // "landscape" or "portrait" — mapped to size if size is empty
+	Size    string // e.g. "1024x1024", "1536x1024"
+	Quality string // e.g. "low", "high"
 }
 
 // StageResult holds the output of a single pipeline stage execution.

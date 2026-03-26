@@ -1,10 +1,8 @@
 pipelines:
   generate:
     defaults:
-      width: 1024
-      height: 1024
-      orientation: landscape
-      quality: high
+      size: 1536x1024
+      quality: low
     stages:
       - name: brainstorm
         output: text
@@ -15,8 +13,7 @@ pipelines:
 
   remix:
     defaults:
-      width: 1024
-      height: 1024
+      size: 1024x1024
       quality: low
     stages:
       - name: stylize

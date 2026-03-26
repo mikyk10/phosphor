@@ -19,8 +19,7 @@ type RemixUsecase interface {
 type RemixInput struct {
 	PipelineName string
 	SourceImage  []byte
-	Width        int
-	Height       int
+	Size         string
 	Quality      string
 }
 
@@ -55,8 +54,7 @@ func (u *remixUsecase) Run(ctx context.Context, input RemixInput) (*RemixOutput,
 	}
 
 	d := pipelineCfg.Defaults
-	width := withDefault(input.Width, d.Width)
-	height := withDefault(input.Height, d.Height)
+	size := withDefaultStr(input.Size, d.Size)
 	quality := withDefaultStr(input.Quality, d.Quality)
 
 	exec := &store.PipelineExecution{
@@ -68,18 +66,12 @@ func (u *remixUsecase) Run(ctx context.Context, input RemixInput) (*RemixOutput,
 		slog.Warn("failed to record pipeline execution", "err", err)
 	}
 
-	size := ""
-	if width > 0 && height > 0 {
-		size = fmt.Sprintf("%dx%d", width, height)
-	}
-
 	result, err := u.runner.RunPipeline(ctx, RunPipelineInput{
 		PipelineExecID: exec.ID,
 		Stages:         pipelineCfg.Stages,
 		SourceImage:    input.SourceImage,
 		ConfigVars: map[string]any{
-			"Width":   width,
-			"Height":  height,
+			"Size":    size,
 			"Quality": quality,
 		},
 		ExecutionParams: pipeline.ExecutionParams{
@@ -100,8 +92,8 @@ func (u *remixUsecase) Run(ctx context.Context, input RemixInput) (*RemixOutput,
 	exec.Status = store.StatusSuccess
 	exec.FinishedAt = sql.NullTime{Time: time.Now(), Valid: true}
 	if err := u.repo.UpdatePipelineExecution(exec); err != nil {
-			slog.Warn("failed to update pipeline execution", "err", err)
-		}
+		slog.Warn("failed to update pipeline execution", "err", err)
+	}
 
 	imgData, ct := result.LastImageOutput()
 	if imgData == nil {

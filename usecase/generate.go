@@ -18,9 +18,7 @@ type GenerateUsecase interface {
 
 type GenerateInput struct {
 	PipelineName string
-	Width        int
-	Height       int
-	Orientation  string
+	Size         string
 	Quality      string
 }
 
@@ -54,14 +52,11 @@ func (u *generateUsecase) Run(ctx context.Context, input GenerateInput) (*Genera
 		return nil, err
 	}
 
-	// Apply defaults from pipeline config where request params are missing.
 	d := pipelineCfg.Defaults
-	width := withDefault(input.Width, d.Width)
-	height := withDefault(input.Height, d.Height)
-	orientation := withDefaultStr(input.Orientation, d.Orientation)
+	size := withDefaultStr(input.Size, d.Size)
 	quality := withDefaultStr(input.Quality, d.Quality)
 
-	slog.Debug("usecase: generate", "pipeline", pipelineName, "width", width, "height", height, "orientation", orientation, "quality", quality)
+	slog.Debug("usecase: generate", "pipeline", pipelineName, "size", size, "quality", quality)
 
 	exec := &store.PipelineExecution{
 		PipelineName: pipelineName,
@@ -72,25 +67,16 @@ func (u *generateUsecase) Run(ctx context.Context, input GenerateInput) (*Genera
 		slog.Warn("failed to record pipeline execution", "err", err)
 	}
 
-	// Build size string from width/height if both are provided.
-	size := ""
-	if width > 0 && height > 0 {
-		size = fmt.Sprintf("%dx%d", width, height)
-	}
-
 	result, err := u.runner.RunPipeline(ctx, RunPipelineInput{
 		PipelineExecID: exec.ID,
 		Stages:         pipelineCfg.Stages,
 		ConfigVars: map[string]any{
-			"Width":       width,
-			"Height":      height,
-			"Orientation": orientation,
-			"Quality":     quality,
+			"Size":    size,
+			"Quality": quality,
 		},
 		ExecutionParams: pipeline.ExecutionParams{
-			Size:        size,
-			Quality:     quality,
-			Orientation: orientation,
+			Size:    size,
+			Quality: quality,
 		},
 	})
 
@@ -106,8 +92,8 @@ func (u *generateUsecase) Run(ctx context.Context, input GenerateInput) (*Genera
 	exec.Status = store.StatusSuccess
 	exec.FinishedAt = sql.NullTime{Time: time.Now(), Valid: true}
 	if err := u.repo.UpdatePipelineExecution(exec); err != nil {
-			slog.Warn("failed to update pipeline execution", "err", err)
-		}
+		slog.Warn("failed to update pipeline execution", "err", err)
+	}
 
 	imgData, ct := result.LastImageOutput()
 	if imgData == nil {
@@ -117,15 +103,15 @@ func (u *generateUsecase) Run(ctx context.Context, input GenerateInput) (*Genera
 	return &GenerateOutput{ImageData: imgData, ContentType: ct}, nil
 }
 
-func withDefault(val, fallback int) int {
-	if val != 0 {
+func withDefaultStr(val, fallback string) string {
+	if val != "" {
 		return val
 	}
 	return fallback
 }
 
-func withDefaultStr(val, fallback string) string {
-	if val != "" {
+func withDefaultInt(val, fallback int) int {
+	if val != 0 {
 		return val
 	}
 	return fallback
