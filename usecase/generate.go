@@ -68,7 +68,9 @@ func (u *generateUsecase) Run(ctx context.Context, input GenerateInput) (*Genera
 		Status:       store.StatusRunning,
 		StartedAt:    time.Now(),
 	}
-	_ = u.repo.CreatePipelineExecution(exec)
+	if err := u.repo.CreatePipelineExecution(exec); err != nil {
+		slog.Warn("failed to record pipeline execution", "err", err)
+	}
 
 	// Build size string from width/height if both are provided.
 	size := ""
@@ -95,13 +97,17 @@ func (u *generateUsecase) Run(ctx context.Context, input GenerateInput) (*Genera
 	if err != nil {
 		exec.Status = store.StatusFailed
 		exec.FinishedAt = sql.NullTime{Time: time.Now(), Valid: true}
-		_ = u.repo.UpdatePipelineExecution(exec)
+		if err := u.repo.UpdatePipelineExecution(exec); err != nil {
+			slog.Warn("failed to update pipeline execution", "err", err)
+		}
 		return nil, err
 	}
 
 	exec.Status = store.StatusSuccess
 	exec.FinishedAt = sql.NullTime{Time: time.Now(), Valid: true}
-	_ = u.repo.UpdatePipelineExecution(exec)
+	if err := u.repo.UpdatePipelineExecution(exec); err != nil {
+			slog.Warn("failed to update pipeline execution", "err", err)
+		}
 
 	imgData, ct := result.LastImageOutput()
 	if imgData == nil {

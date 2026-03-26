@@ -20,6 +20,11 @@ func Load(configDir string) (*GlobalConfig, *ServiceConfig, error) {
 	}
 
 	applyDefaults(global)
+
+	if err := validate(global, svc); err != nil {
+		return nil, nil, fmt.Errorf("config validation: %w", err)
+	}
+
 	return global, svc, nil
 }
 
@@ -36,6 +41,21 @@ func loadYAML[T any](path string) (*T, error) {
 		return nil, err
 	}
 	return &cfg, nil
+}
+
+func validate(global *GlobalConfig, svc *ServiceConfig) error {
+	if len(global.AI.Providers) == 0 {
+		return fmt.Errorf("no AI providers configured in config.yaml")
+	}
+	if len(svc.Pipelines) == 0 {
+		return fmt.Errorf("no pipelines configured in service.yaml")
+	}
+	for name, p := range svc.Pipelines {
+		if len(p.Stages) == 0 {
+			return fmt.Errorf("pipeline %q has no stages", name)
+		}
+	}
+	return nil
 }
 
 func applyDefaults(cfg *GlobalConfig) {

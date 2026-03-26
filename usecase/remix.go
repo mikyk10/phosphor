@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/mikyk10/wisp-ai/config"
@@ -63,7 +64,9 @@ func (u *remixUsecase) Run(ctx context.Context, input RemixInput) (*RemixOutput,
 		Status:       store.StatusRunning,
 		StartedAt:    time.Now(),
 	}
-	_ = u.repo.CreatePipelineExecution(exec)
+	if err := u.repo.CreatePipelineExecution(exec); err != nil {
+		slog.Warn("failed to record pipeline execution", "err", err)
+	}
 
 	size := ""
 	if width > 0 && height > 0 {
@@ -88,13 +91,17 @@ func (u *remixUsecase) Run(ctx context.Context, input RemixInput) (*RemixOutput,
 	if err != nil {
 		exec.Status = store.StatusFailed
 		exec.FinishedAt = sql.NullTime{Time: time.Now(), Valid: true}
-		_ = u.repo.UpdatePipelineExecution(exec)
+		if err := u.repo.UpdatePipelineExecution(exec); err != nil {
+			slog.Warn("failed to update pipeline execution", "err", err)
+		}
 		return nil, err
 	}
 
 	exec.Status = store.StatusSuccess
 	exec.FinishedAt = sql.NullTime{Time: time.Now(), Valid: true}
-	_ = u.repo.UpdatePipelineExecution(exec)
+	if err := u.repo.UpdatePipelineExecution(exec); err != nil {
+			slog.Warn("failed to update pipeline execution", "err", err)
+		}
 
 	imgData, ct := result.LastImageOutput()
 	if imgData == nil {

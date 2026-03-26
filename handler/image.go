@@ -28,10 +28,18 @@ func (h *ImageHandler) Generate(c *echo.Context) error {
 		Quality:      c.QueryParam("quality"),
 	}
 	if w := c.QueryParam("width"); w != "" {
-		input.Width, _ = strconv.Atoi(w)
+		v, err := strconv.Atoi(w)
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid width: " + w})
+		}
+		input.Width = v
 	}
 	if ht := c.QueryParam("height"); ht != "" {
-		input.Height, _ = strconv.Atoi(ht)
+		v, err := strconv.Atoi(ht)
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid height: " + ht})
+		}
+		input.Height = v
 	}
 
 	slog.Info("handler: GET /image", "pipeline", input.PipelineName, "width", input.Width, "height", input.Height, "orientation", input.Orientation, "quality", input.Quality)
@@ -48,8 +56,11 @@ func (h *ImageHandler) Generate(c *echo.Context) error {
 	c.Response().Header().Set("Content-Type", result.ContentType)
 	c.Response().WriteHeader(http.StatusOK)
 	n, writeErr := c.Response().Write(result.ImageData)
-	slog.Info("handler: response written", "bytes_written", n, "err", writeErr)
-	return writeErr
+	if writeErr != nil {
+		slog.Error("handler: failed to write response", "bytes_written", n, "err", writeErr)
+		return writeErr
+	}
+	return nil
 }
 
 // Remix handles POST /image — image-to-image processing.
@@ -68,10 +79,18 @@ func (h *ImageHandler) Remix(c *echo.Context) error {
 		Quality:      c.QueryParam("quality"),
 	}
 	if w := c.QueryParam("width"); w != "" {
-		input.Width, _ = strconv.Atoi(w)
+		v, err := strconv.Atoi(w)
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid width: " + w})
+		}
+		input.Width = v
 	}
 	if ht := c.QueryParam("height"); ht != "" {
-		input.Height, _ = strconv.Atoi(ht)
+		v, err := strconv.Atoi(ht)
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid height: " + ht})
+		}
+		input.Height = v
 	}
 
 	slog.Info("handler: POST /image", "pipeline", input.PipelineName, "body_bytes", len(body), "quality", input.Quality)

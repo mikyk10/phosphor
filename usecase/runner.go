@@ -22,14 +22,11 @@ type PipelineRunner struct {
 	cfg             *config.GlobalConfig
 	repo            store.Repository
 	executorFactory ExecutorFactory
-	verbose         bool
 }
 
 func NewPipelineRunner(cfg *config.GlobalConfig, repo store.Repository) *PipelineRunner {
 	return &PipelineRunner{cfg: cfg, repo: repo, executorFactory: llm.NewStageExecutor}
 }
-
-func (r *PipelineRunner) SetVerbose(v bool) { r.verbose = v }
 
 // RunPipelineInput holds the inputs for a pipeline execution.
 type RunPipelineInput struct {
@@ -156,7 +153,9 @@ func (r *PipelineRunner) RunPipeline(ctx context.Context, input RunPipelineInput
 		}
 
 		step.Status = store.StatusSuccess
-		_ = r.repo.UpdateStepExecution(step)
+		if err := r.repo.UpdateStepExecution(step); err != nil {
+			slog.Warn("failed to update step execution", "stage", stage.Name, "err", err)
+		}
 
 		sr.StageName = stage.Name
 		output := &store.StepOutput{
@@ -169,7 +168,9 @@ func (r *PipelineRunner) RunPipeline(ctx context.Context, input RunPipelineInput
 			output.ContentBlob = sr.ImageData
 			output.ContentType = sr.ContentType
 		}
-		_ = r.repo.CreateStepOutput(output)
+		if err := r.repo.CreateStepOutput(output); err != nil {
+			slog.Warn("failed to save step output", "stage", stage.Name, "err", err)
+		}
 
 		result.Stages = append(result.Stages, *sr)
 		stageOutputs[stage.Name] = llm.StageOutput{
@@ -211,7 +212,9 @@ func (r *PipelineRunner) failStep(step *store.StepExecution, errorCode string, e
 	step.ErrorCode = errorCode
 	step.ErrorMessage = err.Error()
 	step.FinishedAt = sql.NullTime{Time: time.Now(), Valid: true}
-	_ = r.repo.UpdateStepExecution(step)
+	if dbErr := r.repo.UpdateStepExecution(step); dbErr != nil {
+		slog.Warn("failed to record step failure", "stage", step.StageName, "err", dbErr)
+	}
 }
 
 func (r *PipelineRunner) recordStepFailure(pipelineExecID store.PrimaryKey, stage config.StageConfig, index int, errorCode string, err error) error {
@@ -225,6 +228,8 @@ func (r *PipelineRunner) recordStepFailure(pipelineExecID store.PrimaryKey, stag
 		ErrorCode:           errorCode,
 		ErrorMessage:        err.Error(),
 	}
-	_ = r.repo.CreateStepExecution(step)
+	if dbErr := r.repo.CreateStepExecution(step); dbErr != nil {
+		slog.Warn("failed to record step failure", "stage", stage.Name, "err", dbErr)
+	}
 	return fmt.Errorf("stage %q: %s: %w", stage.Name, errorCode, err)
 }

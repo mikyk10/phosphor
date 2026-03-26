@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 	"unicode"
@@ -62,7 +63,9 @@ func (u *tagUsecase) Run(ctx context.Context, input TagInput) (*TagOutput, error
 		Status:       store.StatusRunning,
 		StartedAt:    time.Now(),
 	}
-	_ = u.repo.CreatePipelineExecution(exec)
+	if err := u.repo.CreatePipelineExecution(exec); err != nil {
+		slog.Warn("failed to record pipeline execution", "err", err)
+	}
 
 	result, err := u.runner.RunPipeline(ctx, RunPipelineInput{
 		PipelineExecID: exec.ID,
@@ -76,13 +79,17 @@ func (u *tagUsecase) Run(ctx context.Context, input TagInput) (*TagOutput, error
 	if err != nil {
 		exec.Status = store.StatusFailed
 		exec.FinishedAt = sql.NullTime{Time: time.Now(), Valid: true}
-		_ = u.repo.UpdatePipelineExecution(exec)
+		if err := u.repo.UpdatePipelineExecution(exec); err != nil {
+			slog.Warn("failed to update pipeline execution", "err", err)
+		}
 		return nil, err
 	}
 
 	exec.Status = store.StatusSuccess
 	exec.FinishedAt = sql.NullTime{Time: time.Now(), Valid: true}
-	_ = u.repo.UpdatePipelineExecution(exec)
+	if err := u.repo.UpdatePipelineExecution(exec); err != nil {
+			slog.Warn("failed to update pipeline execution", "err", err)
+		}
 
 	rawText := result.LastTextOutput()
 	tags := parseTags(rawText, maxTags)
