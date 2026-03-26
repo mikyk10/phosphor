@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chromedp/cdproto/emulation"
+	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
 
 	"github.com/mikyk10/wisp-ai/pipeline"
@@ -74,6 +76,7 @@ func (e *Executor) capture(ctx context.Context, html string) ([]byte, error) {
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
 		chromedp.WindowSize(e.width, e.height),
 		chromedp.Flag("hide-scrollbars", true),
+		chromedp.Flag("force-device-scale-factor", "1"),
 	)
 
 	// Use CHROME_PATH if set (e.g. /opt/chrome/chrome-headless-shell in Docker).
@@ -92,12 +95,22 @@ func (e *Executor) capture(ctx context.Context, html string) ([]byte, error) {
 
 	var buf []byte
 	if err := chromedp.Run(taskCtx,
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			return emulation.SetDeviceMetricsOverride(int64(e.width), int64(e.height), 1.0, false).Do(ctx)
+		}),
 		chromedp.Navigate("about:blank"),
 		chromedp.ActionFunc(func(ctx context.Context) error {
 			return chromedp.Evaluate(`document.open(); document.write(`+quote(html)+`); document.close();`, nil).Do(ctx)
 		}),
 		chromedp.WaitReady("body"),
-		chromedp.FullScreenshot(&buf, 100),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			var err error
+			buf, err = page.CaptureScreenshot().
+				WithFormat(page.CaptureScreenshotFormatPng).
+				WithCaptureBeyondViewport(false).
+				Do(ctx)
+			return err
+		}),
 	); err != nil {
 		return nil, err
 	}
