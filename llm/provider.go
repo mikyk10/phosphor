@@ -231,7 +231,7 @@ func (e *chatImageExecutor) Execute(ctx context.Context, prompt string, images [
 	if err != nil {
 		return nil, fmt.Errorf("chat completion request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -323,7 +323,7 @@ func downloadImage(ctx context.Context, url string) ([]byte, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, "", err
@@ -492,7 +492,7 @@ func (e *imageEditExecutor) Execute(ctx context.Context, prompt string, images [
 	if err != nil {
 		return nil, fmt.Errorf("image edit request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {

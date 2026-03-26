@@ -34,7 +34,7 @@ func (t *reasoningTransport) RoundTrip(req *http.Request) (*http.Response, error
 	}
 
 	body, err := io.ReadAll(req.Body)
-	req.Body.Close()
+	_ = req.Body.Close()
 	if err != nil {
 		return nil, err
 	}
