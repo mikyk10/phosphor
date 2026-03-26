@@ -1,4 +1,29 @@
 pipelines:
+  dinner:
+    defaults:
+      size: 800x480
+    stages:
+      - name: context
+        output: text
+        prompt: config/prompts/examples/dinner_data.md
+      - name: suggest
+        output: text
+        prompt: config/prompts/examples/dinner_suggest.md
+      - name: render
+        output: image
+        prompt: config/prompts/examples/dinner_render.md
+
+  dashboard:
+    defaults:
+      size: 800x480
+    stages:
+      - name: data
+        output: text
+        prompt: config/prompts/examples/dashboard_data.md
+      - name: render
+        output: image
+        prompt: config/prompts/examples/dashboard_render.md
+
   generate:
     defaults:
       size: 1536x1024
@@ -6,10 +31,10 @@ pipelines:
     stages:
       - name: brainstorm
         output: text
-        prompt: prompts/example/gen_meta.md
+        prompt: config/prompts/examples/generate/meta.md
       - name: render
         output: image
-        prompt: prompts/example/gen_image.md
+        prompt: config/prompts/examples/generate/image.md
 
   remix:
     defaults:
@@ -18,7 +43,7 @@ pipelines:
     stages:
       - name: stylize
         output: image
-        prompt: prompts/example/stylize.md
+        prompt: config/prompts/examples/remix/stylize.md
         image_input: _source
 
   tag:
@@ -27,8 +52,50 @@ pipelines:
     stages:
       - name: descriptor
         output: text
-        prompt: prompts/example/descriptor.md
+        prompt: config/prompts/examples/tag/descriptor.md
         image_input: _source
       - name: tagger
         output: text
-        prompt: prompts/example/tagger.md
+        prompt: config/prompts/examples/tag/tagger.md
+
+  proverbs:
+    defaults:
+      size: 1536x1024
+      quality: low
+    stages:
+      - name: proverb-text
+        output: text
+        prompt: config/prompts/examples/proverb/text.md
+      - name: proverb-image
+        output: image
+        prompt: config/prompts/examples/proverb/image.md
+
+  surreal:
+    defaults:
+      size: 1536x1024
+      quality: low
+    stages:
+      - name: brainstorm
+        output: text
+        prompt: config/prompts/examples/generate/brainstorm.md
+      - name: refine
+        output: text
+        prompt: config/prompts/examples/surreal/refine.md
+      - name: generate
+        output: image
+        prompt: config/prompts/examples/surreal/generate.md
+
+  nordic:
+    defaults:
+      size: 1536x1024
+      quality: low
+    stages:
+      - name: brainstorm
+        output: text
+        prompt: config/prompts/examples/generate/brainstorm.md
+      - name: refine
+        output: text
+        prompt: config/prompts/examples/nordic/refine.md
+      - name: generate
+        output: image
+        prompt: config/prompts/examples/nordic/generate.md

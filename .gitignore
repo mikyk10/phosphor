@@ -7,7 +7,7 @@ config/config.yaml
 config/service.yaml
 
 # Local prompts
-prompts/.local/
+config/prompts/.local/
 
 # OS
 .DS_Store
