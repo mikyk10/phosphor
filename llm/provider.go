@@ -16,6 +16,7 @@ import (
 
 	"github.com/mikyk10/wisp-ai/config"
 	"github.com/mikyk10/wisp-ai/pipeline"
+	"github.com/mikyk10/wisp-ai/render"
 
 	anyllm "github.com/mozilla-ai/any-llm-go"
 	openaicompat "github.com/mozilla-ai/any-llm-go/providers/openai"
@@ -32,6 +33,16 @@ func NewStageExecutor(providers map[string]config.ProviderConfig, meta PromptMet
 	}
 	if params.Quality != "" {
 		meta.Quality = params.Quality
+	}
+	if meta.ApiType == ApiTypeRender {
+		size := meta.Size
+		if params.Size != "" {
+			size = params.Size
+		}
+		if size == "" {
+			size = "800x600"
+		}
+		return render.NewExecutor(size)
 	}
 	if outputType == "image" {
 		switch meta.ApiType {

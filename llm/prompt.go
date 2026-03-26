@@ -16,6 +16,7 @@ const (
 	ApiTypeChat            = "chat"             // chat completion (default)
 	ApiTypeImageGeneration = "image_generation" // /v1/images/generations
 	ApiTypeImageEdit       = "image_edit"       // /v1/images/edits (img2img)
+	ApiTypeRender          = "render"            // HTML template → headless Chrome screenshot
 	ApiTypeComfyUI         = "comfyui"          // ComfyUI (future)
 )
 
