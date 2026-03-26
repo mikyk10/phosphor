@@ -57,23 +57,16 @@ func newWebRunCommand() *cobra.Command {
 
 			repo := store.NewRepository(db)
 			runner := usecase.NewPipelineRunner(globalCfg, repo)
-
-			genUC := usecase.NewGenerateUsecase(svcCfg, runner, repo)
-			remixUC := usecase.NewRemixUsecase(svcCfg, runner, repo)
-			tagUC := usecase.NewTagUsecase(svcCfg, runner, repo)
-
-			imgHandler := handler.NewImageHandler(genUC, remixUC)
-			tagHandler := handler.NewTagHandler(tagUC)
+			uc := usecase.NewPipelineUsecase(svcCfg, runner, repo)
+			ph := handler.NewPipelineHandler(uc)
 
 			e := echo.New()
-			route.Configure(e, imgHandler, tagHandler)
+			route.Configure(e, ph)
 
 			addr := fmt.Sprintf(":%d", globalCfg.Port)
 			slog.Info("server starting", "port", globalCfg.Port, "dsn", globalCfg.Database.DSN,
 				"pipelines", len(svcCfg.Pipelines))
 
-			// Pipeline execution can take 60+ seconds. Set generous timeouts
-			// to prevent write timeouts on large image responses.
 			s := http.Server{
 				Addr:         addr,
 				Handler:      e,
