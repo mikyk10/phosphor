@@ -96,10 +96,10 @@ pipelines:
     stages:
       - name: brainstorm
         output: text
-        prompt: config/prompts/example/gen_meta.md
+        prompt: config/prompts/examples/gen_meta.md
       - name: render
         output: image
-        prompt: config/prompts/example/gen_image.md
+        prompt: config/prompts/examples/gen_image.md
 
   remix:
     defaults:
@@ -107,7 +107,7 @@ pipelines:
     stages:
       - name: stylize
         output: image
-        prompt: config/prompts/example/stylize.md
+        prompt: config/prompts/examples/stylize.md
         image_input: _source
 
   tag:
@@ -116,14 +116,14 @@ pipelines:
     stages:
       - name: descriptor
         output: text
-        prompt: config/prompts/example/descriptor.md
+        prompt: config/prompts/examples/descriptor.md
         image_input: _source
       - name: tagger
         output: text
-        prompt: config/prompts/example/tagger.md
+        prompt: config/prompts/examples/tagger.md
 ```
 
-Multiple pipelines can be defined and selected via `?pipeline=name`.
+Multiple pipelines can be defined and selected via `POST /pipeline/{name}`.
 
 ## Prompt Files
 
