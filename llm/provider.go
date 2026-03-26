@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/mikyk10/wisp-ai/config"
+	luaexec "github.com/mikyk10/wisp-ai/lua"
 	"github.com/mikyk10/wisp-ai/pipeline"
 	"github.com/mikyk10/wisp-ai/render"
 
@@ -33,6 +34,9 @@ func NewStageExecutor(providers map[string]config.ProviderConfig, meta PromptMet
 	}
 	if params.Quality != "" {
 		meta.Quality = params.Quality
+	}
+	if meta.ApiType == ApiTypeLua {
+		return luaexec.NewExecutor(timeout), nil
 	}
 	if meta.ApiType == ApiTypeRender {
 		size := meta.Size

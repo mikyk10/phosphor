@@ -3,6 +3,7 @@ package render
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"log/slog"
@@ -36,7 +37,7 @@ func NewExecutor(size string) (*Executor, error) {
 // Execute renders the prompt as HTML content and captures a full-page screenshot.
 // If the prompt string does not contain HTML tags, it is treated as a file path.
 func (e *Executor) Execute(ctx context.Context, prompt string, _ [][]byte) (*pipeline.StageResult, error) {
-	html, err := renderHTML(prompt)
+	html, err := renderHTML(prompt, nil)
 	if err != nil {
 		return nil, fmt.Errorf("render html: %w", err)
 	}
@@ -55,21 +56,40 @@ func (e *Executor) Execute(ctx context.Context, prompt string, _ [][]byte) (*pip
 	}, nil
 }
 
-// renderHTML loads HTML from a file path or uses the content directly.
-func renderHTML(content string) (string, error) {
+// templateFuncs provides helper functions available in HTML templates.
+var templateFuncs = template.FuncMap{
+	"json": func(s string) (map[string]any, error) {
+		var m map[string]any
+		if err := json.Unmarshal([]byte(s), &m); err != nil {
+			return nil, fmt.Errorf("json parse: %w", err)
+		}
+		return m, nil
+	},
+}
+
+// renderHTML loads an HTML template and executes it with the provided data.
+// If the content does not contain HTML tags, it is treated as a file path.
+// The data map is available as template variables (e.g. {{.key}}).
+func renderHTML(content string, data map[string]any) (string, error) {
 	if !strings.Contains(content, "<") {
-		data, err := os.ReadFile(content)
+		raw, err := os.ReadFile(content)
 		if err != nil {
 			return "", fmt.Errorf("load template %s: %w", content, err)
 		}
-		content = string(data)
+		content = string(raw)
 	}
 
-	if _, err := template.New("page").Parse(content); err != nil {
+	tmpl, err := template.New("page").Funcs(templateFuncs).Parse(content)
+	if err != nil {
 		return "", fmt.Errorf("parse html template: %w", err)
 	}
 
-	return content, nil
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return "", fmt.Errorf("execute html template: %w", err)
+	}
+
+	return buf.String(), nil
 }
 
 func (e *Executor) capture(ctx context.Context, html string) ([]byte, error) {

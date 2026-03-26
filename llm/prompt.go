@@ -3,6 +3,7 @@ package llm
 import (
 	"bytes"
 	"crypto/sha1" //nolint:gosec // sha1 used for prompt versioning, not cryptography
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -11,12 +12,24 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+// promptFuncs provides helper functions available in prompt templates.
+var promptFuncs = template.FuncMap{
+	"json": func(s string) (map[string]any, error) {
+		var m map[string]any
+		if err := json.Unmarshal([]byte(s), &m); err != nil {
+			return nil, fmt.Errorf("json parse: %w", err)
+		}
+		return m, nil
+	},
+}
+
 // API type constants for prompt frontmatter.
 const (
 	ApiTypeChat            = "chat"             // chat completion (default)
 	ApiTypeImageGeneration = "image_generation" // /v1/images/generations
 	ApiTypeImageEdit       = "image_edit"       // /v1/images/edits (img2img)
 	ApiTypeRender          = "render"            // HTML template → headless Chrome screenshot
+	ApiTypeLua             = "lua"              // Lua script execution
 	ApiTypeComfyUI         = "comfyui"          // ComfyUI (future)
 )
 
@@ -87,7 +100,7 @@ type TemplateData struct {
 
 // RenderPrompt renders a prompt template with the given data.
 func RenderPrompt(body string, data TemplateData) (string, error) {
-	tmpl, err := template.New("prompt").Parse(body)
+	tmpl, err := template.New("prompt").Funcs(promptFuncs).Parse(body)
 	if err != nil {
 		return "", fmt.Errorf("parse prompt template: %w", err)
 	}
