@@ -19,7 +19,7 @@ func NewPipelineHandler(uc usecase.PipelineUsecase) *PipelineHandler {
 	return &PipelineHandler{uc: uc}
 }
 
-// Run handles POST /pipeline/:name
+// Run handles GET|POST /pipeline/:name
 func (h *PipelineHandler) Run(c *echo.Context) error {
 	name := c.Param("name")
 
@@ -44,7 +44,7 @@ func (h *PipelineHandler) Run(c *echo.Context) error {
 		input.MaxTags = v
 	}
 
-	slog.Info("handler: POST /pipeline", "name", name, "size", input.Size, "quality", input.Quality, "body_bytes", len(body))
+	slog.Info("handler: pipeline", "method", c.Request().Method, "name", name, "size", input.Size, "quality", input.Quality, "body_bytes", len(body))
 	start := time.Now()
 
 	result, err := h.uc.Run(c.Request().Context(), input)
