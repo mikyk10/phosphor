@@ -1,5 +1,5 @@
 port: 8080
-log_level: INFO
+log_level: DEBUG
 
 database:
   dsn: ":memory:"           # default: in-memory (stateless)

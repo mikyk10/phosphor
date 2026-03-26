@@ -5,13 +5,11 @@ import (
 	"github.com/mikyk10/wisp-ai/handler"
 )
 
-func Configure(e *echo.Echo) *echo.Echo {
+func Configure(e *echo.Echo, imgHandler *handler.ImageHandler, tagHandler *handler.TagHandler) *echo.Echo {
 	e.GET("/health", handler.HealthHandler{}.GetHealth)
-
-	// TODO: Phase 3 — image and tag handlers
-	// e.GET("/image", imageHandler.Generate)
-	// e.POST("/image", imageHandler.Remix)
-	// e.POST("/tag", tagHandler.Tag)
-
+	e.GET("/test.png", handler.HealthHandler{}.GetTestImage)
+	e.GET("/image", imgHandler.Generate)
+	e.POST("/image", imgHandler.Remix)
+	e.POST("/tag", tagHandler.Tag)
 	return e
 }

@@ -30,9 +30,20 @@ type ServiceConfig struct {
 	Pipelines map[string]PipelineConfig `yaml:"pipelines"`
 }
 
-// PipelineConfig defines a sequence of stages.
+// PipelineConfig defines a sequence of stages with optional defaults.
 type PipelineConfig struct {
-	Stages []StageConfig `yaml:"stages"`
+	Defaults PipelineDefaults `yaml:"defaults"`
+	Stages   []StageConfig    `yaml:"stages"`
+}
+
+// PipelineDefaults holds default values for pipeline execution parameters.
+// Request parameters override these when provided.
+type PipelineDefaults struct {
+	Width       int    `yaml:"width"`
+	Height      int    `yaml:"height"`
+	Orientation string `yaml:"orientation"`
+	Quality     string `yaml:"quality"`
+	MaxTags     int    `yaml:"max_tags"`
 }
 
 // StageConfig defines a single pipeline stage.

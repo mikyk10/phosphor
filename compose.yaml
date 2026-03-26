@@ -6,13 +6,13 @@ services:
       args:
         LOCAL_DEV: "true"
     ports:
-      - "8081:8081"
+      - "8082:8082"
     environment:
       - TZ=Asia/Tokyo
     volumes:
       - .:/app
     healthcheck:
-      test: curl -f http://localhost:8081/health
+      test: curl -f http://localhost:8082/health
       interval: 3s
       timeout: 5s
       retries: 10

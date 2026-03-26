@@ -3,12 +3,16 @@ package cmd
 import (
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
+	"time"
 
 	"github.com/labstack/echo/v5"
 	"github.com/mikyk10/wisp-ai/config"
+	"github.com/mikyk10/wisp-ai/handler"
 	"github.com/mikyk10/wisp-ai/route"
 	"github.com/mikyk10/wisp-ai/store"
+	"github.com/mikyk10/wisp-ai/usecase"
 	"github.com/spf13/cobra"
 )
 
@@ -34,7 +38,7 @@ func newWebRunCommand() *cobra.Command {
 		Use:   "run",
 		Short: "Start the HTTP server",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			globalCfg, _, err := config.Load(configDir)
+			globalCfg, svcCfg, err := config.Load(configDir)
 			if err != nil {
 				return fmt.Errorf("load config: %w", err)
 			}
@@ -51,12 +55,32 @@ func newWebRunCommand() *cobra.Command {
 				return fmt.Errorf("auto-migrate: %w", err)
 			}
 
+			repo := store.NewRepository(db)
+			runner := usecase.NewPipelineRunner(globalCfg, repo)
+
+			genUC := usecase.NewGenerateUsecase(svcCfg, runner, repo)
+			remixUC := usecase.NewRemixUsecase(svcCfg, runner, repo)
+			tagUC := usecase.NewTagUsecase(svcCfg, runner, repo)
+
+			imgHandler := handler.NewImageHandler(genUC, remixUC)
+			tagHandler := handler.NewTagHandler(tagUC)
+
 			e := echo.New()
-			route.Configure(e)
+			route.Configure(e, imgHandler, tagHandler)
 
 			addr := fmt.Sprintf(":%d", globalCfg.Port)
-			slog.Info("server starting", "port", globalCfg.Port, "dsn", globalCfg.Database.DSN)
-			return e.Start(addr)
+			slog.Info("server starting", "port", globalCfg.Port, "dsn", globalCfg.Database.DSN,
+				"pipelines", len(svcCfg.Pipelines))
+
+			// Pipeline execution can take 60+ seconds. Set generous timeouts
+			// to prevent write timeouts on large image responses.
+			s := http.Server{
+				Addr:         addr,
+				Handler:      e,
+				ReadTimeout:  5 * time.Minute,
+				WriteTimeout: 5 * time.Minute,
+			}
+			return s.ListenAndServe()
 		},
 	}
 
