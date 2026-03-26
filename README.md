@@ -1,43 +1,39 @@
 # wisp-ai
 
-AI pipeline microservice for [WiSP](https://github.com/mikyk10/wisp) (Waveshare e-Ink Smart Photo frame).
+> **Experimental.** This project is a work in progress. The design may change significantly, and nothing is guaranteed to work. Use at your own risk.
 
-Generates images, applies style transfers, and tags photos via configurable multi-stage LLM pipelines. Designed to run alongside WiSP as an HTTP image source.
+Image pipeline microservice for [WiSP](https://github.com/mikyk10/wisp) (Waveshare e-Ink Smart Photo frame).
+
+Generates and transforms images through configurable multi-stage pipelines. Stages can include LLM calls, Lua scripts for data gathering, and headless Chrome rendering for HTML-to-image conversion. Designed to run alongside WiSP as an HTTP image source.
 
 ## API
 
 | Endpoint | Method | Description |
 |---|---|---|
-| `/image` | GET | Text-to-image generation |
-| `/image` | POST | Image-to-image processing (body: source image) |
-| `/tag` | POST | Image tagging (body: image, response: JSON tags) |
+| `/pipeline/:name` | GET | Execute a named pipeline (no source image) |
+| `/pipeline/:name` | POST | Execute a named pipeline (body: source image) |
 | `/health` | GET | Health check |
 
 ### Query Parameters
 
-| Param | Endpoints | Description |
-|---|---|---|
-| `pipeline` | all | Pipeline name from service.yaml (default: `generate`/`remix`/`tag`) |
-| `width` | `/image` | Output width in pixels |
-| `height` | `/image` | Output height in pixels |
-| `orientation` | `GET /image` | `landscape` or `portrait` (maps to size if width/height omitted) |
-| `quality` | `/image` | `low`, `medium`, or `high` |
-| `max_tags` | `/tag` | Maximum tags to return (default: 10) |
+| Param | Description |
+|---|---|
+| `size` | Output size, e.g. `1024x1536` |
+| `quality` | `low`, `medium`, or `high` |
+| `max_tags` | Maximum tags to return (tagging pipelines) |
 
 ### Examples
 
 ```sh
 # Generate an image
-curl -o art.png "http://localhost:8082/image?pipeline=generate&quality=high"
+curl -o art.png "http://localhost:8082/pipeline/generate?size=1024x1024&quality=high"
 
 # Style transfer (img2img)
 curl -X POST -H "Content-Type: image/jpeg" --data-binary @photo.jpg \
-  -o styled.png "http://localhost:8082/image?pipeline=remix"
+  -o styled.png "http://localhost:8082/pipeline/remix"
 
-# Tag an image
-curl -X POST -H "Content-Type: image/jpeg" --data-binary @photo.jpg \
-  "http://localhost:8082/tag"
-# → {"tags":["sunset","bridge","river"]}
+# Render a dashboard
+curl -o dashboard.png "http://localhost:8082/pipeline/dashboard?size=800x480"
 ```
 
 ## Quick Start
@@ -123,11 +119,11 @@ pipelines:
         prompt: prompts/example/tagger.md
 ```
 
-Multiple pipelines can be defined and selected via `?pipeline=name`.
+Multiple pipelines can be defined and selected via `GET|POST /pipeline/{name}`.
 
 ## Prompt Files
 
-Prompts use YAML frontmatter for LLM provider/model selection:
+Prompts use YAML frontmatter for provider/model/type selection:
 
 ```markdown
 ---
@@ -144,11 +140,10 @@ api_type: image_generation
 |---|---|
 | `{{.prev.output}}` | Previous stage text output |
 | `{{.stages.NAME.output}}` | Named stage text output |
-| `{{.config.Width}}` | Requested width |
-| `{{.config.Height}}` | Requested height |
-| `{{.config.Orientation}}` | Requested orientation |
+| `{{.config.Size}}` | Requested size |
 | `{{.config.Quality}}` | Requested quality |
 | `{{.config.MaxTags}}` | Max tags (tagging only) |
+| `{{json .prev.output}}` | Parse previous output as JSON |
 
 ### API Types
 
@@ -157,10 +152,12 @@ api_type: image_generation
 | `chat` | Text generation (default) |
 | `image_generation` | Text-to-image (`/v1/images/generations`) |
 | `image_edit` | Image-to-image (`/v1/images/edits`) |
+| `render` | HTML template → headless Chrome screenshot |
+| `lua` | Lua script execution (data gathering) |
 
 ## Integration with WiSP
 
-WiSP's HTTP catalog fetches images from wisp-ai via background cache:
+WiSP's HTTP catalog fetches images from wisp-ai:
 
 ```yaml
 # WiSP service.yaml
@@ -168,7 +165,7 @@ catalog:
   - key: ai-art
     type: http
     http:
-      url: http://wisp-ai:8082/image?pipeline=generate&orientation=landscape
+      url: http://wisp-ai:8082/pipeline/generate?size=1024x1536
       cache:
         type: background
         depth: 10
@@ -184,6 +181,8 @@ usecase/     Business logic + PipelineRunner
 pipeline/    StageExecutor interface, result types
   ↓
 llm/         LLM providers (OpenAI compatible)
+lua/         Lua script executor (gopher-lua)
+render/      HTML → PNG via headless Chrome (chromedp)
   ↓
 store/       Execution history (SQLite, in-memory default)
 ```

@@ -40,8 +40,8 @@ size: 800x480
       <span class="value">{{index $d "humidity"}}%</span>
     </div>
     <div class="card card-green">
-      <span class="label">Photos</span>
-      <span class="value">{{index $d "photos"}}</span>
+      <span class="label">IP Address</span>
+      <span class="value">{{index $d "ip"}}</span>
     </div>
     <div class="card card-yellow">
       <span class="label">Uptime</span>

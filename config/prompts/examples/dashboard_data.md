@@ -2,17 +2,15 @@
 api_type: lua
 ---
 local json = require("json")
+local http = require("http")
 
--- Example: fetch data from an API
--- local http = require("http")
--- local raw = http.get("http://sensors.local/api/current")
--- return raw
+local ip_raw = http.get("https://api.ipify.org?format=json")
+local ip_data = json.decode(ip_raw)
 
--- Static sample data for demonstration
 local data = {
   temperature = "23.4",
   humidity = "58",
-  photos = "1,247",
+  ip = ip_data.ip,
   uptime = "14d 3h",
   updated = os.date("%Y-%m-%d %H:%M %Z")
 }
