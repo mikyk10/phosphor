@@ -1,0 +1,19 @@
+services:
+  ai:
+    build:
+      context: .
+      target: development
+      args:
+        LOCAL_DEV: "true"
+    ports:
+      - "8081:8081"
+    environment:
+      - TZ=Asia/Tokyo
+    volumes:
+      - .:/app
+    healthcheck:
+      test: curl -f http://localhost:8081/health
+      interval: 3s
+      timeout: 5s
+      retries: 10
+      start_period: 10s

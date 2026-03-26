@@ -1,0 +1,26 @@
+pipelines:
+  generate:
+    stages:
+      - name: brainstorm
+        output: text
+        prompt: prompts/example/gen_meta.md
+      - name: render
+        output: image
+        prompt: prompts/example/gen_image.md
+
+  remix:
+    stages:
+      - name: stylize
+        output: image
+        prompt: prompts/example/stylize.md
+        image_input: _source
+
+  tag:
+    stages:
+      - name: descriptor
+        output: text
+        prompt: prompts/example/descriptor.md
+        image_input: _source
+      - name: tagger
+        output: text
+        prompt: prompts/example/tagger.md

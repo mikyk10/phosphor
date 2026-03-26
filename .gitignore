@@ -1,0 +1,24 @@
+# Binary
+wisp-ai
+tmp/
+
+# Config (copy from *.example)
+config/config.yaml
+config/service.yaml
+
+# Local prompts
+prompts/.local/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/
+*.swp
+
+# Database (local debug)
+*.db
+*.db-shm
+*.db-wal

@@ -1,0 +1,16 @@
+port: 8080
+log_level: INFO
+
+database:
+  dsn: ":memory:"           # default: in-memory (stateless)
+  # dsn: ./wisp-ai.db       # debug: persistent file
+
+ai:
+  request_timeout_sec: 120
+  max_retries: 3
+  providers:
+    ollama:
+      endpoint: http://localhost:11434/v1
+    # openai:
+    #   endpoint: https://api.openai.com/v1
+    #   api_key: "${OPENAI_API_KEY}"
