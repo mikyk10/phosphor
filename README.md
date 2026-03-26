@@ -1,4 +1,4 @@
-# wisp-ai
+# phosphor
 
 > **Experimental.** This project is a work in progress. The design may change significantly, and nothing is guaranteed to work. Use at your own risk.
 
@@ -18,22 +18,25 @@ Generates and transforms images through configurable multi-stage pipelines. Stag
 
 | Param | Description |
 |---|---|
-| `size` | Output size, e.g. `1024x1536` |
+| `size` | Output size, e.g. `1024x1536`, `800x480` |
 | `quality` | `low`, `medium`, or `high` |
 | `max_tags` | Maximum tags to return (tagging pipelines) |
 
 ### Examples
 
 ```sh
-# Generate an image
+# Generate an AI image
 curl -o art.png "http://localhost:8082/pipeline/generate?size=1024x1024&quality=high"
 
 # Style transfer (img2img)
 curl -X POST -H "Content-Type: image/jpeg" --data-binary @photo.jpg \
   -o styled.png "http://localhost:8082/pipeline/remix"
 
-# Render a dashboard
+# Render a live dashboard (Lua fetches weather data, Chrome renders HTML)
 curl -o dashboard.png "http://localhost:8082/pipeline/dashboard?size=800x480"
+
+# AI dinner suggestion (Lua + LLM + Chrome render, 3-stage pipeline)
+curl -o dinner.png "http://localhost:8082/pipeline/dinner?size=800x480"
 ```
 
 ## Quick Start
@@ -43,7 +46,7 @@ curl -o dashboard.png "http://localhost:8082/pipeline/dashboard?size=800x480"
 cp config/config.yaml.example config/config.yaml
 cp config/service.yaml.example config/service.yaml
 
-# 2. Set your API key in config/config.yaml
+# 2. Set your API key in config/config.yaml (only needed for LLM pipelines)
 #    ai.providers.openai.api_key: "${OPENAI_API_KEY}"
 
 # 3. Run
@@ -56,6 +59,8 @@ go run . web run
 ```sh
 docker compose up --build
 ```
+
+The Docker image includes Chromium for headless HTML rendering.
 
 ## Configuration
 
@@ -83,55 +88,122 @@ ai:
 
 ```yaml
 pipelines:
+  # Text-to-image via LLM
   generate:
     defaults:
-      width: 1024
-      height: 1024
-      orientation: landscape
+      size: 1024x1024
       quality: high
     stages:
       - name: brainstorm
         output: text
-        prompt: prompts/example/gen_meta.md
+        prompt: config/prompts/examples/gen_meta.md
       - name: render
         output: image
-        prompt: prompts/example/gen_image.md
+        prompt: config/prompts/examples/gen_image.md
 
+  # Image-to-image style transfer
   remix:
     defaults:
       quality: low
     stages:
       - name: stylize
         output: image
-        prompt: prompts/example/stylize.md
+        prompt: config/prompts/examples/stylize.md
         image_input: _source
 
+  # Photo tagging
   tag:
     defaults:
       max_tags: 10
     stages:
       - name: descriptor
         output: text
-        prompt: prompts/example/descriptor.md
+        prompt: config/prompts/examples/descriptor.md
         image_input: _source
       - name: tagger
         output: text
-        prompt: prompts/example/tagger.md
+        prompt: config/prompts/examples/tagger.md
+
+  # Live weather dashboard (no LLM needed)
+  dashboard:
+    defaults:
+      size: 800x480
+    stages:
+      - name: data
+        output: text
+        prompt: config/prompts/examples/dashboard_data.md
+      - name: render
+        output: image
+        prompt: config/prompts/examples/dashboard_render.md
+
+  # AI dinner suggestion (LLM + weather context)
+  dinner:
+    defaults:
+      size: 800x480
+    stages:
+      - name: context
+        output: text
+        prompt: config/prompts/examples/dinner_data.md
+      - name: suggest
+        output: text
+        prompt: config/prompts/examples/dinner_suggest.md
+      - name: render
+        output: image
+        prompt: config/prompts/examples/dinner_render.md
 ```
 
 Multiple pipelines can be defined and selected via `GET|POST /pipeline/{name}`.
 
 ## Prompt Files
 
-Prompts use YAML frontmatter for provider/model/type selection:
+Each stage references a prompt file with YAML frontmatter:
 
 ```markdown
 ---
 provider: openai
-model: gpt-image-1
-api_type: image_generation
+model: gpt-4o
+api_type: chat
+temperature: 0.7
 ---
-{{.prev.output}}
+Describe this photo in detail.
+```
+
+### API Types
+
+| `api_type` | Use | Provider needed |
+|---|---|---|
+| `chat` | LLM text generation (default) | Yes |
+| `image_generation` | Text-to-image (`/v1/images/generations`) | Yes |
+| `image_edit` | Image-to-image (`/v1/images/edits`) | Yes |
+| `lua` | Run a Lua script for data gathering | No |
+| `render` | HTML template → headless Chrome screenshot | No |
+
+### Lua Scripts (`api_type: lua`)
+
+Lua stages run embedded scripts with built-in modules:
+
+```lua
+local json = require("json")   -- JSON encode/decode
+local http = require("http")   -- HTTP client
+
+local raw = http.get("https://api.open-meteo.com/v1/forecast?...")
+local data = json.decode(raw)
+
+return json.encode({
+  temperature = tostring(data.current.temperature_2m),
+  humidity = tostring(data.current.relative_humidity_2m),
+})
+```
+
+### HTML Rendering (`api_type: render`)
+
+Render stages take HTML (inline or from a file path) and capture a PNG screenshot via headless Chrome. The viewport size is controlled by the `size` parameter.
+
+Previous stage outputs are available as template variables:
+
+```html
+{{$d := json .prev.output}}
+<div class="value">{{index $d "temperature"}}°C</div>
 ```
 
 ### Template Variables
@@ -140,24 +212,14 @@ api_type: image_generation
 |---|---|
 | `{{.prev.output}}` | Previous stage text output |
 | `{{.stages.NAME.output}}` | Named stage text output |
+| `{{json .prev.output}}` | Parse previous output as JSON map |
 | `{{.config.Size}}` | Requested size |
 | `{{.config.Quality}}` | Requested quality |
 | `{{.config.MaxTags}}` | Max tags (tagging only) |
-| `{{json .prev.output}}` | Parse previous output as JSON |
-
-### API Types
-
-| `api_type` | Use |
-|---|---|
-| `chat` | Text generation (default) |
-| `image_generation` | Text-to-image (`/v1/images/generations`) |
-| `image_edit` | Image-to-image (`/v1/images/edits`) |
-| `render` | HTML template → headless Chrome screenshot |
-| `lua` | Lua script execution (data gathering) |
 
 ## Integration with WiSP
 
-WiSP's HTTP catalog fetches images from wisp-ai:
+WiSP's HTTP catalog fetches images from phosphor:
 
 ```yaml
 # WiSP service.yaml
@@ -165,10 +227,17 @@ catalog:
   - key: ai-art
     type: http
     http:
-      url: http://wisp-ai:8082/pipeline/generate?size=1024x1536
+      url: http://phosphor:8082/pipeline/generate?size=1024x1536
       cache:
         type: background
         depth: 10
+
+  - key: dashboard
+    type: http
+    http:
+      url: http://phosphor:8082/pipeline/dashboard?size=800x480
+      cache:
+        type: realtime
 ```
 
 ## Architecture
