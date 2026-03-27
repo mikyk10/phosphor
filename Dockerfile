@@ -45,8 +45,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 ENV CHROME_PATH=/usr/bin/chromium
 
-COPY --from=builder /app/wisp-ai .
+COPY --from=builder /app/phosphor .
 COPY config config
 
-ENTRYPOINT ["./wisp-ai"]
+ENTRYPOINT ["./phosphor"]
 CMD ["web", "run"]

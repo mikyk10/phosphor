@@ -8,18 +8,18 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v5"
-	"github.com/mikyk10/wisp-ai/config"
-	"github.com/mikyk10/wisp-ai/handler"
-	"github.com/mikyk10/wisp-ai/route"
-	"github.com/mikyk10/wisp-ai/store"
-	"github.com/mikyk10/wisp-ai/usecase"
+	"github.com/mikyk10/phosphor/config"
+	"github.com/mikyk10/phosphor/handler"
+	"github.com/mikyk10/phosphor/route"
+	"github.com/mikyk10/phosphor/store"
+	"github.com/mikyk10/phosphor/usecase"
 	"github.com/spf13/cobra"
 )
 
 func Execute(args []string) {
 	rootCmd := &cobra.Command{
-		Use:   "wisp-ai",
-		Short: "WiSP AI Pipeline Service",
+		Use:   "phosphor",
+		Short: "Phosphor AI Pipeline Service",
 	}
 	rootCmd.SilenceUsage = true
 	rootCmd.SetArgs(args)

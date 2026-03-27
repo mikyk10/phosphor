@@ -42,7 +42,7 @@ func NewSQLiteConnection(dsn string, silent bool) (*gorm.DB, error) {
 
 func appendSQLitePragmas(dsn string) string {
 	if dsn == "" || dsn == ":memory:" {
-		name := fmt.Sprintf("wispadb_%d_%d", time.Now().UnixNano(), rand.Int()) //nolint:gosec
+		name := fmt.Sprintf("phosphor_%d_%d", time.Now().UnixNano(), rand.Int()) //nolint:gosec
 		return fmt.Sprintf("file:%s?mode=memory&cache=shared&_pragma=busy_timeout(5000)&_pragma=synchronous(NORMAL)&_pragma=foreign_keys(ON)", name)
 	}
 

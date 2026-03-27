@@ -7,10 +7,10 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/mikyk10/wisp-ai/config"
-	"github.com/mikyk10/wisp-ai/llm"
-	"github.com/mikyk10/wisp-ai/pipeline"
-	"github.com/mikyk10/wisp-ai/store"
+	"github.com/mikyk10/phosphor/config"
+	"github.com/mikyk10/phosphor/llm"
+	"github.com/mikyk10/phosphor/pipeline"
+	"github.com/mikyk10/phosphor/store"
 )
 
 // ExecutorFactory creates a StageExecutor from prompt metadata and output type.

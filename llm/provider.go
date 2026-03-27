@@ -14,10 +14,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mikyk10/wisp-ai/config"
-	luaexec "github.com/mikyk10/wisp-ai/lua"
-	"github.com/mikyk10/wisp-ai/pipeline"
-	"github.com/mikyk10/wisp-ai/render"
+	"github.com/mikyk10/phosphor/config"
+	luaexec "github.com/mikyk10/phosphor/lua"
+	"github.com/mikyk10/phosphor/pipeline"
+	"github.com/mikyk10/phosphor/render"
 
 	anyllm "github.com/mozilla-ai/any-llm-go"
 	openaicompat "github.com/mozilla-ai/any-llm-go/providers/openai"
@@ -56,8 +56,6 @@ func NewStageExecutor(providers map[string]config.ProviderConfig, meta PromptMet
 			return newImageEditExecutor(providers, meta, timeout)
 		case ApiTypeChat:
 			return newChatImageExecutor(providers, meta, timeout)
-		case ApiTypeComfyUI:
-			return nil, fmt.Errorf("api_type %q is not yet implemented", ApiTypeComfyUI)
 		default:
 			return nil, fmt.Errorf("unknown api_type %q", meta.ApiType)
 		}

@@ -15,7 +15,7 @@ import (
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
 
-	"github.com/mikyk10/wisp-ai/pipeline"
+	"github.com/mikyk10/phosphor/pipeline"
 )
 
 // Executor renders an HTML template and captures it as a PNG screenshot

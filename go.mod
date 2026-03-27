@@ -1,4 +1,4 @@
-module github.com/mikyk10/wisp-ai
+module github.com/mikyk10/phosphor
 
 go 1.26
 

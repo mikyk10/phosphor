@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v5"
-	"github.com/mikyk10/wisp-ai/usecase"
+	"github.com/mikyk10/phosphor/usecase"
 )
 
 type PipelineHandler struct {

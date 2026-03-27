@@ -1,4 +1,4 @@
-BINARY := wisp-ai
+BINARY := phosphor
 ENTRYPOINT := main.go
 
 .DEFAULT_GOAL := build

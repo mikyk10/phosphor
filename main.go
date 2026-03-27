@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/mikyk10/wisp-ai/cmd"
+	"github.com/mikyk10/phosphor/cmd"
 )
 
 func main() {

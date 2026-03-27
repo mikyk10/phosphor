@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/mikyk10/wisp-ai/pipeline"
+	"github.com/mikyk10/phosphor/pipeline"
 
 	lua "github.com/yuin/gopher-lua"
 	luajson "layeh.com/gopher-json"

@@ -9,9 +9,9 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/mikyk10/wisp-ai/config"
-	"github.com/mikyk10/wisp-ai/pipeline"
-	"github.com/mikyk10/wisp-ai/store"
+	"github.com/mikyk10/phosphor/config"
+	"github.com/mikyk10/phosphor/pipeline"
+	"github.com/mikyk10/phosphor/store"
 )
 
 type PipelineUsecase interface {
