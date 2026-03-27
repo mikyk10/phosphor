@@ -1,10 +1,25 @@
-# phosphor
+<p align="center">
+  <img src="docs/logo.svg" width="120" height="120" alt="phosphor logo">
+</p>
+
+<h1 align="center">phosphor</h1>
+
+<p align="center">
+  AI image pipeline microservice — chain LLM calls, Lua scripts, and headless Chrome rendering into configurable, YAML-defined pipelines.
+</p>
+
+<p align="center">
+  <a href="#quick-start">Quick Start</a> &middot;
+  <a href="#configuration">Configuration</a> &middot;
+  <a href="#prompt-files">Prompt Files</a> &middot;
+  <a href="#architecture">Architecture</a>
+</p>
+
+---
 
 > **Experimental.** This project is a work in progress. The design may change significantly, and nothing is guaranteed to work. Use at your own risk.
 
-Image pipeline microservice for [WiSP](https://github.com/mikyk10/wisp) (Waveshare e-Ink Smart Photo frame).
-
-Generates and transforms images through configurable multi-stage pipelines. Stages can include LLM calls, Lua scripts for data gathering, and headless Chrome rendering for HTML-to-image conversion. Designed to run alongside WiSP as an HTTP image source.
+Generates and transforms images through configurable multi-stage pipelines. Each stage can call an LLM, run a Lua script for data gathering, or render HTML to PNG via headless Chrome. Originally built as an image source for [WiSP](https://github.com/mikyk10/wisp) (Waveshare e-Ink Smart Photo frame), but works standalone as a general-purpose AI image pipeline.
 
 ## API
 
@@ -263,4 +278,4 @@ store/       Execution history (SQLite, in-memory default)
 
 ## License
 
-MIT
+[MIT](LICENSE)
