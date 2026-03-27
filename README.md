@@ -26,17 +26,17 @@ Generates and transforms images through configurable multi-stage pipelines. Stag
 
 ```sh
 # Generate an AI image
-curl -o art.png "http://localhost:8080/pipeline/generate?size=1024x1024&quality=high"
+curl -o art.png "http://localhost:8082/pipeline/generate?size=1024x1024&quality=high"
 
 # Style transfer (img2img)
 curl -X POST -H "Content-Type: image/jpeg" --data-binary @photo.jpg \
-  -o styled.png "http://localhost:8080/pipeline/remix"
+  -o styled.png "http://localhost:8082/pipeline/remix"
 
 # Render a live dashboard (Lua fetches weather data, Chrome renders HTML)
-curl -o dashboard.png "http://localhost:8080/pipeline/dashboard?size=800x480"
+curl -o dashboard.png "http://localhost:8082/pipeline/dashboard?size=800x480"
 
 # AI dinner suggestion (Lua + LLM + Chrome render, 3-stage pipeline)
-curl -o dinner.png "http://localhost:8080/pipeline/dinner?size=800x480"
+curl -o dinner.png "http://localhost:8082/pipeline/dinner?size=800x480"
 ```
 
 ## Quick Start
@@ -54,7 +54,7 @@ go run . web run
 The `dashboard` pipeline uses only Lua + Chrome rendering and works without an API key:
 
 ```sh
-curl -o dashboard.png "http://localhost:8080/pipeline/dashboard?size=800x480"
+curl -o dashboard.png "http://localhost:8082/pipeline/dashboard?size=800x480"
 ```
 
 ### Docker
@@ -72,7 +72,7 @@ Two YAML files in `config/`:
 ### config.yaml — Infrastructure
 
 ```yaml
-port: 8080
+port: 8082
 log_level: DEBUG
 
 database:
