@@ -26,17 +26,17 @@ Generates and transforms images through configurable multi-stage pipelines. Stag
 
 ```sh
 # Generate an AI image
-curl -o art.png "http://localhost:8082/pipeline/generate?size=1024x1024&quality=high"
+curl -o art.png "http://localhost:8080/pipeline/generate?size=1024x1024&quality=high"
 
 # Style transfer (img2img)
 curl -X POST -H "Content-Type: image/jpeg" --data-binary @photo.jpg \
-  -o styled.png "http://localhost:8082/pipeline/remix"
+  -o styled.png "http://localhost:8080/pipeline/remix"
 
 # Render a live dashboard (Lua fetches weather data, Chrome renders HTML)
-curl -o dashboard.png "http://localhost:8082/pipeline/dashboard?size=800x480"
+curl -o dashboard.png "http://localhost:8080/pipeline/dashboard?size=800x480"
 
 # AI dinner suggestion (Lua + LLM + Chrome render, 3-stage pipeline)
-curl -o dinner.png "http://localhost:8082/pipeline/dinner?size=800x480"
+curl -o dinner.png "http://localhost:8080/pipeline/dinner?size=800x480"
 ```
 
 ## Quick Start
@@ -46,12 +46,15 @@ curl -o dinner.png "http://localhost:8082/pipeline/dinner?size=800x480"
 cp config/config.yaml.example config/config.yaml
 cp config/service.yaml.example config/service.yaml
 
-# 2. Set your API key in config/config.yaml (only needed for LLM pipelines)
-#    ai.providers.openai.api_key: "${OPENAI_API_KEY}"
-
-# 3. Run
+# 2. Set your OpenAI API key and run
 export OPENAI_API_KEY=sk-...
 go run . web run
+```
+
+The `dashboard` pipeline uses only Lua + Chrome rendering and works without an API key:
+
+```sh
+curl -o dashboard.png "http://localhost:8080/pipeline/dashboard?size=800x480"
 ```
 
 ### Docker
@@ -69,7 +72,7 @@ Two YAML files in `config/`:
 ### config.yaml — Infrastructure
 
 ```yaml
-port: 8082
+port: 8080
 log_level: DEBUG
 
 database:
@@ -91,8 +94,8 @@ pipelines:
   # Text-to-image via LLM
   generate:
     defaults:
-      size: 1024x1024
-      quality: high
+      size: 1536x1024
+      quality: low
     stages:
       - name: brainstorm
         output: text
@@ -151,6 +154,8 @@ pipelines:
         output: image
         prompt: config/prompts/examples/dinner_render.md
 ```
+
+More example pipelines (`proverbs`, `surreal`, `nordic`) are available in `config/service.yaml.example`.
 
 Multiple pipelines can be defined and selected via `GET|POST /pipeline/{name}`.
 
