@@ -41,14 +41,13 @@ const (
 	ApiTypeImageEdit       = "image_edit"       // /v1/images/edits (img2img)
 	ApiTypeRender          = "render"            // HTML template → headless Chrome screenshot
 	ApiTypeLua             = "lua"              // Lua script execution
-	ApiTypeComfyUI         = "comfyui"          // ComfyUI (future)
 )
 
 // PromptMeta holds the YAML front-matter of a prompt file.
 type PromptMeta struct {
 	Provider    string  `yaml:"provider"`
 	Model       string  `yaml:"model"`
-	ApiType     string  `yaml:"api_type"` // "chat" (default), "image_generation", "comfyui"
+	ApiType     string  `yaml:"api_type"` // "chat" (default), "image_generation", "image_edit", "lua", "render"
 	Temperature float64 `yaml:"temperature"`
 	MaxTokens   int     `yaml:"max_tokens"`
 	Size        string  `yaml:"size"`    // image_generation only
