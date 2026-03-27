@@ -237,7 +237,7 @@ Previous stage outputs are available as template variables:
 | `{{.config.Quality}}` | Requested quality |
 | `{{.config.MaxTags}}` | Max tags (tagging only) |
 
-## Integration with WiSP
+## Integration with [WiSP](https://github.com/mikyk10/wisp)
 
 WiSP's HTTP catalog fetches images from phosphor:
 
