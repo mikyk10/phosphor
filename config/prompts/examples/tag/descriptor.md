@@ -1,8 +1,6 @@
 ---
-provider: ollama
-model: qwen3.5:9b
-#provider: openai
-#model: gpt-4o
+provider: openai
+model: gpt-4o
 temperature: 0.3
 max_tokens: 500
 ---

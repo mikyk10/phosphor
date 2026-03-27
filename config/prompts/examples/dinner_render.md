@@ -3,7 +3,7 @@ api_type: render
 size: 800x480
 ---
 {{$ctx := json .stages.context.output}}{{$d := json .prev.output}}<!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <style>
@@ -96,7 +96,7 @@ size: 800x480
   <div class="reason">{{index $d "reason"}}</div>
 
   <div class="footer">
-    <span>WiSP Dinner</span>
+    <span>Phosphor Dinner</span>
     <span>{{index $ctx "date"}}</span>
   </div>
 </body>

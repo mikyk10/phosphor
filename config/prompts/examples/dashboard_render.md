@@ -109,7 +109,7 @@ size: 800x480
   </div>
 
   <div class="footer">
-    <span>WiSP Dashboard</span>
+    <span>Phosphor Dashboard</span>
     <span>Updated {{index $d "updated"}}</span>
   </div>
 </body>

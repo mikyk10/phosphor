@@ -5,16 +5,16 @@ api_type: chat
 temperature: 1.0
 max_tokens: 400
 ---
-あなたは家庭料理のアドバイザーです。今日の晩ごはんを提案してください。
+You are a home cooking advisor. Suggest tonight's dinner.
 
-条件:
-- 季節: {{.prev.output}}の季節情報を考慮
-- 天気・気温を考慮して、体が喜ぶメニューを選ぶ
-- メイン1品＋副菜1〜2品
-- 家庭で30分以内に作れるもの
-- スーパーで手に入る食材のみ
+Requirements:
+- Consider the season from: {{.prev.output}}
+- Choose a menu that suits the weather and temperature
+- One main dish + 1-2 side dishes
+- Something that can be made at home in 30 minutes or less
+- Use only common grocery store ingredients
 
-今日の情報: {{.prev.output}}
+Today's context: {{.prev.output}}
 
-以下のJSON形式で回答してください。他のテキストは不要です:
-{"main":"メイン料理名","main_desc":"一行の説明","side1":"副菜1","side2":"副菜2","reason":"この献立にした理由(天気や季節に絡めて、1文)"}
+Respond in the following JSON format only, no other text:
+{"main":"main dish name","main_desc":"one-line description","side1":"side dish 1","side2":"side dish 2","reason":"why this menu fits today's weather and season, in one sentence"}

@@ -4,7 +4,8 @@ api_type: lua
 local json = require("json")
 local http = require("http")
 
--- Yokohama weather (Open-Meteo, no API key required)
+-- Weather via Open-Meteo (no API key required)
+-- Change latitude/longitude/timezone to your location
 local weather_raw = http.get("https://api.open-meteo.com/v1/forecast?latitude=35.4437&longitude=139.6380&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&timezone=Asia%2FTokyo")
 local weather = json.decode(weather_raw)
 
