@@ -22,10 +22,18 @@ type PipelineRunner struct {
 	cfg             *config.GlobalConfig
 	repo            store.Repository
 	executorFactory ExecutorFactory
+	// backoffBase is the unit of the exponential retry backoff
+	// (backoffBase << attempt). Tests shorten it; production keeps 1s.
+	backoffBase time.Duration
 }
 
 func NewPipelineRunner(cfg *config.GlobalConfig, repo store.Repository) *PipelineRunner {
-	return &PipelineRunner{cfg: cfg, repo: repo, executorFactory: llm.NewStageExecutor}
+	return &PipelineRunner{
+		cfg:             cfg,
+		repo:            repo,
+		executorFactory: llm.NewStageExecutor,
+		backoffBase:     time.Second,
+	}
 }
 
 // RunPipelineInput holds the inputs for a pipeline execution.
@@ -49,6 +57,10 @@ func (r *PipelineRunner) RunPipeline(ctx context.Context, input RunPipelineInput
 	maxRetries := r.cfg.AI.MaxRetries
 	if maxRetries <= 0 {
 		maxRetries = 3
+	}
+	backoffBase := r.backoffBase
+	if backoffBase <= 0 {
+		backoffBase = time.Second
 	}
 
 	for i, stage := range input.Stages {
@@ -142,7 +154,7 @@ func (r *PipelineRunner) RunPipeline(ctx context.Context, input RunPipelineInput
 			}
 
 			if attempt < maxRetries {
-				backoff := time.Duration(1<<uint(attempt)) * time.Second
+				backoff := time.Duration(1<<uint(attempt)) * backoffBase
 				slog.Warn("pipeline: stage failed, retrying", "stage", stage.Name, "attempt", attempt+1, "err", execErr, "backoff", backoff)
 				select {
 				case <-time.After(backoff):
