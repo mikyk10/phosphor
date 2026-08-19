@@ -92,6 +92,8 @@ log_level: DEBUG
 
 database:
   dsn: ":memory:"       # in-memory (default) or file path for debug
+  max_history: 200      # keep only the newest N pipeline executions (-1 disables pruning)
+  store_image_outputs: false  # persist generated image blobs in the history DB
 
 ai:
   request_timeout_sec: 120
@@ -275,6 +277,12 @@ render/      HTML → PNG via headless Chrome (chromedp)
   ↓
 store/       Execution history (SQLite, in-memory default)
 ```
+
+Execution history is trimmed in-process: a background pruner keeps only the
+newest `database.max_history` pipeline executions (and their steps/outputs),
+running once at startup and every 5 minutes thereafter. Generated image blobs
+are not persisted unless `database.store_image_outputs` is enabled, since the
+default DSN is in-memory and blobs would otherwise grow RAM without bound.
 
 ## License
 

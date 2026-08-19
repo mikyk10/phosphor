@@ -4,6 +4,8 @@ log_level: DEBUG
 database:
   dsn: ":memory:"           # default: in-memory (stateless)
   # dsn: ./phosphor.db       # debug: persistent file
+  max_history: 200          # keep the newest N executions (-1 disables pruning)
+  store_image_outputs: false # persist generated image blobs (grows the DB fast)
 
 ai:
   request_timeout_sec: 120

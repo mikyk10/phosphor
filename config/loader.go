@@ -71,4 +71,7 @@ func applyDefaults(cfg *GlobalConfig) {
 	if cfg.Database.DSN == "" {
 		cfg.Database.DSN = ":memory:"
 	}
+	if cfg.Database.MaxHistory == 0 {
+		cfg.Database.MaxHistory = 200
+	}
 }

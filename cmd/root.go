@@ -56,6 +56,8 @@ func newWebRunCommand() *cobra.Command {
 			}
 
 			repo := store.NewRepository(db)
+			store.StartPruner(cmd.Context(), repo, globalCfg.Database.MaxHistory, store.DefaultPruneInterval)
+
 			runner := usecase.NewPipelineRunner(globalCfg, repo)
 			uc := usecase.NewPipelineUsecase(svcCfg, runner, repo)
 			ph := handler.NewPipelineHandler(uc)
