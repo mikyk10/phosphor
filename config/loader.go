@@ -71,4 +71,7 @@ func applyDefaults(cfg *GlobalConfig) {
 	if cfg.Database.DSN == "" {
 		cfg.Database.DSN = ":memory:"
 	}
+	if cfg.MaxConcurrentPipelines == 0 {
+		cfg.MaxConcurrentPipelines = 4
+	}
 }

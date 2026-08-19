@@ -57,7 +57,7 @@ func newWebRunCommand() *cobra.Command {
 
 			repo := store.NewRepository(db)
 			runner := usecase.NewPipelineRunner(globalCfg, repo)
-			uc := usecase.NewPipelineUsecase(svcCfg, runner, repo)
+			uc := usecase.NewPipelineUsecase(svcCfg, runner, repo, globalCfg.MaxConcurrentPipelines)
 			ph := handler.NewPipelineHandler(uc)
 
 			e := echo.New()

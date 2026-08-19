@@ -89,6 +89,7 @@ Two YAML files in `config/`:
 ```yaml
 port: 8082
 log_level: DEBUG
+max_concurrent_pipelines: 4   # simultaneous pipeline executions (0 = unlimited)
 
 database:
   dsn: ":memory:"       # in-memory (default) or file path for debug

@@ -38,10 +38,32 @@ type pipelineUsecase struct {
 	svcCfg *config.ServiceConfig
 	runner *PipelineRunner
 	repo   store.Repository
+	// sem bounds concurrent executions. nil means unlimited.
+	sem chan struct{}
 }
 
-func NewPipelineUsecase(svcCfg *config.ServiceConfig, runner *PipelineRunner, repo store.Repository) PipelineUsecase {
-	return &pipelineUsecase{svcCfg: svcCfg, runner: runner, repo: repo}
+// NewPipelineUsecase builds the usecase. maxConcurrent bounds how many
+// pipelines may execute simultaneously; <= 0 disables the limit.
+func NewPipelineUsecase(svcCfg *config.ServiceConfig, runner *PipelineRunner, repo store.Repository, maxConcurrent int) PipelineUsecase {
+	u := &pipelineUsecase{svcCfg: svcCfg, runner: runner, repo: repo}
+	if maxConcurrent > 0 {
+		u.sem = make(chan struct{}, maxConcurrent)
+	}
+	return u
+}
+
+// acquire waits for an execution slot, returning a release func. It gives up
+// if the caller disconnects while queued rather than piling up waiters.
+func (u *pipelineUsecase) acquire(ctx context.Context) (func(), error) {
+	if u.sem == nil {
+		return func() {}, nil
+	}
+	select {
+	case u.sem <- struct{}{}:
+		return func() { <-u.sem }, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
 
 func (u *pipelineUsecase) Run(ctx context.Context, input PipelineInput) (*PipelineOutput, error) {
@@ -69,6 +91,15 @@ func (u *pipelineUsecase) Run(ctx context.Context, input PipelineInput) (*Pipeli
 	lastStageOutput := pipelineCfg.Stages[len(pipelineCfg.Stages)-1].Output
 
 	slog.Debug("usecase: pipeline", "name", input.PipelineName, "size", size, "quality", quality, "output", lastStageOutput)
+
+	// Wait for a slot before anything is recorded, so a queued request does
+	// not leave a `running` row behind if the client disconnects.
+	release, err := u.acquire(ctx)
+	if err != nil {
+		slog.Warn("usecase: gave up waiting for an execution slot", "name", input.PipelineName, "err", err)
+		return nil, err
+	}
+	defer release()
 
 	exec := &store.PipelineExecution{
 		PipelineName: input.PipelineName,

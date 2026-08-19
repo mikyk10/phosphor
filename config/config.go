@@ -10,6 +10,10 @@ type GlobalConfig struct {
 		DSN string `yaml:"dsn"`
 	} `yaml:"database"`
 	AI AIConfig `yaml:"ai"`
+	// MaxConcurrentPipelines bounds how many pipeline executions may run at
+	// once. Each one fans out into LLM calls and headless Chrome tabs, so an
+	// unbounded count runs away with both cost and memory.
+	MaxConcurrentPipelines int `yaml:"max_concurrent_pipelines"`
 }
 
 // AIConfig holds LLM provider connection details and execution parameters.
@@ -39,8 +43,8 @@ type PipelineConfig struct {
 // PipelineDefaults holds default values for pipeline execution parameters.
 // Request parameters override these when provided.
 type PipelineDefaults struct {
-	Size    string `yaml:"size"`     // e.g. "1024x1024", "1536x1024"
-	Quality string `yaml:"quality"`  // e.g. "low", "high"
+	Size    string `yaml:"size"`    // e.g. "1024x1024", "1536x1024"
+	Quality string `yaml:"quality"` // e.g. "low", "high"
 	MaxTags int    `yaml:"max_tags"`
 }
 
@@ -48,6 +52,6 @@ type PipelineDefaults struct {
 type StageConfig struct {
 	Name       string `yaml:"name"`
 	Output     string `yaml:"output"`      // "text" or "image"
-	Prompt     string `yaml:"prompt"`       // path to prompt file
+	Prompt     string `yaml:"prompt"`      // path to prompt file
 	ImageInput string `yaml:"image_input"` // "_source" or stage name
 }
