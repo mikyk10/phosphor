@@ -261,10 +261,12 @@ func (e *chatImageExecutor) Execute(ctx context.Context, prompt string, images [
 		})
 	}
 
-	return extractImageFromChatResponse(respBody)
+	return extractImageFromChatResponse(callCtx, respBody)
 }
 
-func extractImageFromChatResponse(respBody []byte) (*pipeline.StageResult, error) {
+// extractImageFromChatResponse parses a chat completion body. ctx bounds any
+// follow-up download of an image referenced by URL.
+func extractImageFromChatResponse(ctx context.Context, respBody []byte) (*pipeline.StageResult, error) {
 	var resp chatCompletionResponse
 	if err := json.Unmarshal(respBody, &resp); err != nil {
 		return nil, fmt.Errorf("unmarshal response: %w", err)
@@ -283,7 +285,7 @@ func extractImageFromChatResponse(respBody []byte) (*pipeline.StageResult, error
 			switch part.Type {
 			case "image_url":
 				if part.ImageURL != nil {
-					imgData, ct, err := resolveImageURL(part.ImageURL.URL)
+					imgData, ct, err := resolveImageURL(ctx, part.ImageURL.URL)
 					if err != nil {
 						return nil, fmt.Errorf("resolve image from response: %w", err)
 					}
@@ -309,7 +311,9 @@ func extractImageFromChatResponse(respBody []byte) (*pipeline.StageResult, error
 	return nil, fmt.Errorf("unable to parse chat response content: %s", truncate(string(content), 200))
 }
 
-func resolveImageURL(url string) ([]byte, string, error) {
+// resolveImageURL decodes a data: URL inline, or downloads any other URL
+// under ctx so a stalled remote host cannot pin the goroutine forever.
+func resolveImageURL(ctx context.Context, url string) ([]byte, string, error) {
 	if strings.HasPrefix(url, "data:") {
 		parts := strings.SplitN(url, ",", 2)
 		if len(parts) != 2 {
@@ -330,9 +334,12 @@ func resolveImageURL(url string) ([]byte, string, error) {
 		return data, ct, nil
 	}
 
-	return downloadImage(context.Background(), url)
+	return downloadImage(ctx, url)
 }
 
+// downloadImage fetches an image over HTTP. ctx must carry a deadline: it is
+// the only thing bounding a remote host that accepts the connection and then
+// stops responding.
 func downloadImage(ctx context.Context, url string) ([]byte, string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
@@ -376,12 +383,16 @@ func newImageGenExecutor(providers map[string]config.ProviderConfig, meta Prompt
 		opts = append(opts, option.WithHTTPClient(&http.Client{Timeout: timeout}))
 	}
 	client := openai.NewClient(opts...)
-	return &imageGenExecutor{client: &client, meta: meta}, nil
+	return &imageGenExecutor{client: &client, meta: meta, timeout: timeout}, nil
 }
 
 type imageGenExecutor struct {
 	client *openai.Client
 	meta   PromptMeta
+	// timeout also bounds the follow-up download when the API answers with a
+	// URL instead of inline base64; that fetch does not go through the
+	// openai client and so does not inherit its HTTP timeout.
+	timeout time.Duration
 }
 
 func (e *imageGenExecutor) Execute(ctx context.Context, prompt string, _ [][]byte) (*pipeline.StageResult, error) {
@@ -408,7 +419,13 @@ func (e *imageGenExecutor) Execute(ctx context.Context, prompt string, _ [][]byt
 
 	item := resp.Data[0]
 	if item.URL != "" {
-		data, ct, err := downloadImage(ctx, item.URL)
+		downloadCtx := ctx
+		if e.timeout > 0 {
+			var cancel context.CancelFunc
+			downloadCtx, cancel = context.WithTimeout(ctx, e.timeout)
+			defer cancel()
+		}
+		data, ct, err := downloadImage(downloadCtx, item.URL)
 		if err != nil {
 			return nil, err
 		}
