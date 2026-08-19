@@ -165,8 +165,12 @@ func (r *PipelineRunner) RunPipeline(ctx context.Context, input RunPipelineInput
 		if sr.OutputType == "text" {
 			output.ContentText = &sr.Text
 		} else {
-			output.ContentBlob = sr.ImageData
 			output.ContentType = sr.ContentType
+			// Image blobs are the dominant driver of history growth, so they
+			// are only persisted when explicitly enabled.
+			if r.cfg.Database.StoreImageOutputs {
+				output.ContentBlob = sr.ImageData
+			}
 		}
 		if err := r.repo.CreateStepOutput(output); err != nil {
 			slog.Warn("failed to save step output", "stage", stage.Name, "err", err)
