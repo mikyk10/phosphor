@@ -11,6 +11,7 @@ import (
 	"unicode"
 
 	"github.com/mikyk10/phosphor/config"
+	"github.com/mikyk10/phosphor/metrics"
 	"github.com/mikyk10/phosphor/pipeline"
 	"github.com/mikyk10/phosphor/store"
 )
@@ -106,10 +107,14 @@ func (u *pipelineUsecase) Run(ctx context.Context, input PipelineInput) (*Pipeli
 	}
 	defer release()
 
+	// Timed from here rather than from arrival, so the histogram measures
+	// execution and matches the StartedAt recorded in the history DB.
+	started := time.Now()
+
 	exec := &store.PipelineExecution{
 		PipelineName: input.PipelineName,
 		Status:       store.StatusRunning,
-		StartedAt:    time.Now(),
+		StartedAt:    started,
 	}
 	if err := u.repo.CreatePipelineExecution(exec); err != nil {
 		slog.Warn("failed to record pipeline execution", "err", err)
@@ -136,6 +141,7 @@ func (u *pipelineUsecase) Run(ctx context.Context, input PipelineInput) (*Pipeli
 		if dbErr := u.repo.UpdatePipelineExecution(exec); dbErr != nil {
 			slog.Warn("failed to update pipeline execution", "err", dbErr)
 		}
+		metrics.ObservePipeline(input.PipelineName, metrics.StatusFailed, time.Since(started).Seconds())
 		return nil, err
 	}
 
@@ -144,6 +150,7 @@ func (u *pipelineUsecase) Run(ctx context.Context, input PipelineInput) (*Pipeli
 	if dbErr := u.repo.UpdatePipelineExecution(exec); dbErr != nil {
 		slog.Warn("failed to update pipeline execution", "err", dbErr)
 	}
+	metrics.ObservePipeline(input.PipelineName, metrics.StatusSuccess, time.Since(started).Seconds())
 
 	// Determine response based on last stage output type.
 	switch lastStageOutput {

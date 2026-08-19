@@ -8,6 +8,7 @@ import (
 
 	"github.com/labstack/echo/v5"
 	"github.com/mikyk10/phosphor/handler"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // Configure registers the HTTP routes. When token is non-empty the pipeline
@@ -15,6 +16,9 @@ import (
 // load balancers keep working.
 func Configure(e *echo.Echo, ph *handler.PipelineHandler, token string) *echo.Echo {
 	e.GET("/health", handler.HealthHandler{}.GetHealth)
+	// /metrics sits with /health: both are operational endpoints, and neither
+	// is subject to the pipeline token.
+	e.GET("/metrics", metricsHandler())
 
 	var mw []echo.MiddlewareFunc
 	if token != "" {
@@ -27,6 +31,16 @@ func Configure(e *echo.Echo, ph *handler.PipelineHandler, token string) *echo.Ec
 	e.GET("/pipeline/:name", ph.Run, mw...)
 	e.POST("/pipeline/:name", ph.Run, mw...)
 	return e
+}
+
+// metricsHandler exposes the Prometheus default registry. Like /health it is
+// an operational endpoint and carries no pipeline data.
+func metricsHandler() echo.HandlerFunc {
+	h := promhttp.Handler()
+	return func(c *echo.Context) error {
+		h.ServeHTTP(c.Response(), c.Request())
+		return nil
+	}
 }
 
 // requireToken accepts the shared token either as an

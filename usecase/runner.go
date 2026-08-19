@@ -9,6 +9,7 @@ import (
 
 	"github.com/mikyk10/phosphor/config"
 	"github.com/mikyk10/phosphor/llm"
+	"github.com/mikyk10/phosphor/metrics"
 	"github.com/mikyk10/phosphor/pipeline"
 	"github.com/mikyk10/phosphor/store"
 )
@@ -232,6 +233,7 @@ func resolveImageInput(ref string, sourceImage []byte, stageOutputs map[string]l
 }
 
 func (r *PipelineRunner) failStep(step *store.StepExecution, errorCode string, err error) {
+	metrics.ObserveStageFailure(step.StageName, errorCode)
 	step.Status = store.StatusFailed
 	step.ErrorCode = errorCode
 	step.ErrorMessage = err.Error()
@@ -242,6 +244,7 @@ func (r *PipelineRunner) failStep(step *store.StepExecution, errorCode string, e
 }
 
 func (r *PipelineRunner) recordStepFailure(pipelineExecID store.PrimaryKey, stage config.StageConfig, index int, errorCode string, err error) error {
+	metrics.ObserveStageFailure(stage.Name, errorCode)
 	step := &store.StepExecution{
 		PipelineExecutionID: pipelineExecID,
 		StageName:           stage.Name,
