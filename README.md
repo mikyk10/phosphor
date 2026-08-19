@@ -28,6 +28,12 @@ Generates and transforms images through configurable multi-stage pipelines. Each
 | `/pipeline/:name` | GET | Execute a named pipeline (no source image) |
 | `/pipeline/:name` | POST | Execute a named pipeline (body: source image) |
 | `/health` | GET | Health check |
+| `/metrics` | GET | Prometheus metrics |
+
+`/metrics` exposes `phosphor_pipeline_executions_total{pipeline,status}`,
+`phosphor_pipeline_duration_seconds{pipeline}` and
+`phosphor_stage_failures_total{stage,error_code}` alongside the standard Go
+runtime collectors.
 
 ### Query Parameters
 
