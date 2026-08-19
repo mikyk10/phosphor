@@ -3,9 +3,7 @@ package render
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"html/template"
 	"log/slog"
 	"os"
 	"strings"
@@ -37,9 +35,9 @@ func NewExecutor(size string) (*Executor, error) {
 // Execute renders the prompt as HTML content and captures a full-page screenshot.
 // If the prompt string does not contain HTML tags, it is treated as a file path.
 func (e *Executor) Execute(ctx context.Context, prompt string, _ [][]byte) (*pipeline.StageResult, error) {
-	html, err := renderHTML(prompt, nil)
+	html, err := loadHTML(prompt)
 	if err != nil {
-		return nil, fmt.Errorf("render html: %w", err)
+		return nil, fmt.Errorf("load html: %w", err)
 	}
 
 	png, err := e.capture(ctx, html)
@@ -56,40 +54,22 @@ func (e *Executor) Execute(ctx context.Context, prompt string, _ [][]byte) (*pip
 	}, nil
 }
 
-// templateFuncs provides helper functions available in HTML templates.
-var templateFuncs = template.FuncMap{
-	"json": func(s string) (map[string]any, error) {
-		var m map[string]any
-		if err := json.Unmarshal([]byte(s), &m); err != nil {
-			return nil, fmt.Errorf("json parse: %w", err)
-		}
-		return m, nil
-	},
-}
-
-// renderHTML loads an HTML template and executes it with the provided data.
-// If the content does not contain HTML tags, it is treated as a file path.
-// The data map is available as template variables (e.g. {{.key}}).
-func renderHTML(content string, data map[string]any) (string, error) {
-	if !strings.Contains(content, "<") {
-		raw, err := os.ReadFile(content)
-		if err != nil {
-			return "", fmt.Errorf("load template %s: %w", content, err)
-		}
-		content = string(raw)
+// loadHTML returns the HTML to capture. If the content contains no "<" it is
+// treated as a path to an HTML file, otherwise it is the markup itself.
+//
+// The content is used verbatim: the pipeline runner already expanded it as a
+// text/template before the stage ran, so template syntax has been resolved by
+// the time it gets here.
+func loadHTML(content string) (string, error) {
+	if strings.Contains(content, "<") {
+		return content, nil
 	}
 
-	tmpl, err := template.New("page").Funcs(templateFuncs).Parse(content)
+	raw, err := os.ReadFile(content)
 	if err != nil {
-		return "", fmt.Errorf("parse html template: %w", err)
+		return "", fmt.Errorf("load template %s: %w", content, err)
 	}
-
-	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, data); err != nil {
-		return "", fmt.Errorf("execute html template: %w", err)
-	}
-
-	return buf.String(), nil
+	return string(raw), nil
 }
 
 func (e *Executor) capture(ctx context.Context, html string) ([]byte, error) {
