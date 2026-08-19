@@ -80,6 +80,17 @@ docker compose up --build
 
 The Docker image includes Chromium for headless HTML rendering.
 
+### Releases
+
+Pushing a semver tag publishes a versioned image to GHCR:
+
+```sh
+git tag v0.2.0 && git push origin v0.2.0
+# -> ghcr.io/mikyk10/phosphor:0.2.0 and :0.2
+```
+
+`latest` continues to track `main`.
+
 ## Configuration
 
 Two YAML files in `config/`:
