@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -65,10 +66,12 @@ func TestResolveImageURL_HonoursContextDeadline(t *testing.T) {
 }
 
 func TestExtractImageFromChatResponse_PropagatesContextToDownload(t *testing.T) {
-	var gotRequest bool
+	// The handler is still parked when the assertions run, so the flag has to
+	// be written and read atomically.
+	var gotRequest atomic.Bool
 	blocked := make(chan struct{})
 	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
-		gotRequest = true
+		gotRequest.Store(true)
 		select {
 		case <-blocked:
 		case <-r.Context().Done():
@@ -86,6 +89,6 @@ func TestExtractImageFromChatResponse_PropagatesContextToDownload(t *testing.T) 
 
 	_, err := extractImageFromChatResponse(ctx, body)
 	require.Error(t, err)
-	require.True(t, gotRequest)
+	require.True(t, gotRequest.Load())
 	require.True(t, errors.Is(err, context.DeadlineExceeded), "got %v", err)
 }
