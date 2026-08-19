@@ -1,6 +1,10 @@
 package handler
 
 import (
+	"crypto/rand"
+	"encoding/hex"
+	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -49,8 +53,18 @@ func (h *PipelineHandler) Run(c *echo.Context) error {
 
 	result, err := h.uc.Run(c.Request().Context(), input)
 	if err != nil {
-		slog.Error("handler: pipeline failed", "name", name, "err", err, "latency", time.Since(start))
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		if errors.Is(err, usecase.ErrPipelineNotFound) {
+			slog.Warn("handler: pipeline not found", "name", name, "latency", time.Since(start))
+			return c.JSON(http.StatusNotFound, map[string]string{"error": "pipeline not found"})
+		}
+		// The underlying error can carry provider response bodies and local
+		// filesystem paths, so only a correlation ID goes to the client.
+		errorID := newErrorID()
+		slog.Error("handler: pipeline failed", "name", name, "error_id", errorID, "err", err, "latency", time.Since(start))
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error":    "pipeline execution failed",
+			"error_id": errorID,
+		})
 	}
 
 	slog.Info("handler: pipeline completed", "name", name, "output_type", result.OutputType, "latency", time.Since(start))
@@ -71,6 +85,23 @@ func (h *PipelineHandler) Run(c *echo.Context) error {
 		}
 		return c.JSON(http.StatusOK, map[string]any{"text": result.Text})
 	default:
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "unknown output type"})
+		errorID := newErrorID()
+		slog.Error("handler: unknown output type", "name", name, "error_id", errorID, "output_type", result.OutputType)
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error":    "pipeline execution failed",
+			"error_id": errorID,
+		})
 	}
+}
+
+// newErrorID returns a short correlation ID that ties the client's 500 to the
+// full error in the server log.
+func newErrorID() string {
+	var b [4]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		// crypto/rand never fails on supported platforms; fall back to a
+		// timestamp rather than dropping correlation entirely.
+		return fmt.Sprintf("%08x", time.Now().UnixNano()&0xffffffff)
+	}
+	return hex.EncodeToString(b[:])
 }
