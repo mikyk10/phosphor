@@ -221,6 +221,8 @@ return json.encode({
 
 Render stages take HTML (inline or from a file path) and capture a PNG screenshot via headless Chrome. The viewport size is controlled by the `size` parameter.
 
+A single headless Chrome process is shared by the whole service (each render is just a new tab), and concurrent renders are capped at 2 — override with the `RENDER_MAX_CONCURRENT` environment variable.
+
 Previous stage outputs are available as template variables:
 
 ```html
