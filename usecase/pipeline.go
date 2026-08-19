@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -13,6 +14,10 @@ import (
 	"github.com/mikyk10/phosphor/pipeline"
 	"github.com/mikyk10/phosphor/store"
 )
+
+// ErrPipelineNotFound is returned when the requested pipeline is not defined
+// in service.yaml. Handlers map it to 404.
+var ErrPipelineNotFound = errors.New("pipeline not found")
 
 type PipelineUsecase interface {
 	Run(ctx context.Context, input PipelineInput) (*PipelineOutput, error)
@@ -73,7 +78,7 @@ func (u *pipelineUsecase) Run(ctx context.Context, input PipelineInput) (*Pipeli
 
 	pipelineCfg, ok := u.svcCfg.Pipelines[input.PipelineName]
 	if !ok {
-		return nil, fmt.Errorf("pipeline %q not found", input.PipelineName)
+		return nil, fmt.Errorf("pipeline %q: %w", input.PipelineName, ErrPipelineNotFound)
 	}
 
 	if len(pipelineCfg.Stages) == 0 {
