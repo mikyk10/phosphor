@@ -1,6 +1,7 @@
 port: 8082
 log_level: DEBUG
 max_request_body_mb: 20   # reject POST bodies larger than this (413)
+max_concurrent_pipelines: 4   # simultaneous pipeline executions (0 = unlimited)
 
 # Optional shared-token protection for /pipeline routes.
 # Unset (the default) leaves the endpoints open; /health is never protected.

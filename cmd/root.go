@@ -71,7 +71,7 @@ func newWebRunCommand() *cobra.Command {
 			store.StartPruner(ctx, repo, globalCfg.Database.MaxHistory, store.DefaultPruneInterval)
 
 			runner := usecase.NewPipelineRunner(globalCfg, repo)
-			uc := usecase.NewPipelineUsecase(svcCfg, runner, repo)
+			uc := usecase.NewPipelineUsecase(svcCfg, runner, repo, globalCfg.MaxConcurrentPipelines)
 			ph := handler.NewPipelineHandler(uc, int64(globalCfg.MaxRequestBodyMB)<<20)
 
 			e := echo.New()

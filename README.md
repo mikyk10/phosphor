@@ -90,6 +90,7 @@ Two YAML files in `config/`:
 port: 8082
 log_level: DEBUG
 max_request_body_mb: 20   # POST bodies above this are rejected with 413
+max_concurrent_pipelines: 4   # simultaneous pipeline executions (0 = unlimited)
 
 # auth:
 #   token: "${PHOSPHOR_TOKEN}"   # optional shared token for /pipeline routes

@@ -12,6 +12,10 @@ type GlobalConfig struct {
 	// MaxRequestBodyMB caps the size of a POST body (a source image).
 	// Requests larger than this are rejected with 413.
 	MaxRequestBodyMB int `yaml:"max_request_body_mb"`
+	// MaxConcurrentPipelines bounds how many pipeline executions may run at
+	// once. Each one fans out into LLM calls and headless Chrome tabs, so an
+	// unbounded count runs away with both cost and memory.
+	MaxConcurrentPipelines int `yaml:"max_concurrent_pipelines"`
 }
 
 // AuthConfig holds the optional shared-token protection for pipeline routes.

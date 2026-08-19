@@ -77,4 +77,7 @@ func applyDefaults(cfg *GlobalConfig) {
 	if cfg.MaxRequestBodyMB == 0 {
 		cfg.MaxRequestBodyMB = 20
 	}
+	if cfg.MaxConcurrentPipelines == 0 {
+		cfg.MaxConcurrentPipelines = 4
+	}
 }
