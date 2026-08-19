@@ -89,6 +89,7 @@ Two YAML files in `config/`:
 ```yaml
 port: 8082
 log_level: DEBUG
+max_request_body_mb: 20   # POST bodies above this are rejected with 413
 
 # auth:
 #   token: "${PHOSPHOR_TOKEN}"   # optional shared token for /pipeline routes

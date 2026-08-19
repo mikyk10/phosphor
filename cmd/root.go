@@ -72,7 +72,7 @@ func newWebRunCommand() *cobra.Command {
 
 			runner := usecase.NewPipelineRunner(globalCfg, repo)
 			uc := usecase.NewPipelineUsecase(svcCfg, runner, repo)
-			ph := handler.NewPipelineHandler(uc)
+			ph := handler.NewPipelineHandler(uc, int64(globalCfg.MaxRequestBodyMB)<<20)
 
 			e := echo.New()
 			route.Configure(e, ph, globalCfg.Auth.Token)

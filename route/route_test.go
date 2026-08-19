@@ -23,7 +23,7 @@ func newTestServer(t *testing.T, token string) (*echo.Echo, *stubUsecase) {
 	t.Helper()
 	uc := &stubUsecase{}
 	e := echo.New()
-	Configure(e, handler.NewPipelineHandler(uc), token)
+	Configure(e, handler.NewPipelineHandler(uc, 1<<20), token)
 	return e, uc
 }
 

@@ -9,6 +9,9 @@ type GlobalConfig struct {
 	Database DatabaseConfig `yaml:"database"`
 	AI       AIConfig       `yaml:"ai"`
 	Auth     AuthConfig     `yaml:"auth"`
+	// MaxRequestBodyMB caps the size of a POST body (a source image).
+	// Requests larger than this are rejected with 413.
+	MaxRequestBodyMB int `yaml:"max_request_body_mb"`
 }
 
 // AuthConfig holds the optional shared-token protection for pipeline routes.

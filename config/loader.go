@@ -74,4 +74,7 @@ func applyDefaults(cfg *GlobalConfig) {
 	if cfg.Database.MaxHistory == 0 {
 		cfg.Database.MaxHistory = 200
 	}
+	if cfg.MaxRequestBodyMB == 0 {
+		cfg.MaxRequestBodyMB = 20
+	}
 }
