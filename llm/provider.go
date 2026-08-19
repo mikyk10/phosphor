@@ -255,7 +255,10 @@ func (e *chatImageExecutor) Execute(ctx context.Context, prompt string, images [
 	}
 
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("chat completion returned %d: %s", resp.StatusCode, string(respBody))
+		return nil, fmt.Errorf("chat completion %w", &StatusError{
+			StatusCode: resp.StatusCode,
+			Body:       string(respBody),
+		})
 	}
 
 	return extractImageFromChatResponse(respBody)
@@ -516,7 +519,10 @@ func (e *imageEditExecutor) Execute(ctx context.Context, prompt string, images [
 	}
 
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("image edit returned %d: %s", resp.StatusCode, truncate(string(respBody), 300))
+		return nil, fmt.Errorf("image edit %w", &StatusError{
+			StatusCode: resp.StatusCode,
+			Body:       truncate(string(respBody), 300),
+		})
 	}
 
 	var result struct {

@@ -133,6 +133,14 @@ func (r *PipelineRunner) RunPipeline(ctx context.Context, input RunPipelineInput
 				return nil, ctx.Err()
 			}
 
+			// A rejected prompt, a policy violation or bad credentials will
+			// fail identically every time — and image APIs bill per attempt.
+			if !llm.IsRetryable(execErr) {
+				slog.Warn("pipeline: stage failed, non-retryable, giving up",
+					"stage", stage.Name, "attempt", attempt+1, "err", execErr)
+				break
+			}
+
 			if attempt < maxRetries {
 				backoff := time.Duration(1<<uint(attempt)) * time.Second
 				slog.Warn("pipeline: stage failed, retrying", "stage", stage.Name, "attempt", attempt+1, "err", execErr, "backoff", backoff)
