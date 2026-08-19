@@ -9,7 +9,16 @@ type GlobalConfig struct {
 	Database struct {
 		DSN string `yaml:"dsn"`
 	} `yaml:"database"`
-	AI AIConfig `yaml:"ai"`
+	AI   AIConfig   `yaml:"ai"`
+	Auth AuthConfig `yaml:"auth"`
+}
+
+// AuthConfig holds the optional shared-token protection for pipeline routes.
+type AuthConfig struct {
+	// Token, when non-empty, is required on every /pipeline request as
+	// either an "Authorization: Bearer <token>" header or a ?key=<token>
+	// query parameter. Empty means the endpoints are open.
+	Token string `yaml:"token"`
 }
 
 // AIConfig holds LLM provider connection details and execution parameters.
@@ -39,8 +48,8 @@ type PipelineConfig struct {
 // PipelineDefaults holds default values for pipeline execution parameters.
 // Request parameters override these when provided.
 type PipelineDefaults struct {
-	Size    string `yaml:"size"`     // e.g. "1024x1024", "1536x1024"
-	Quality string `yaml:"quality"`  // e.g. "low", "high"
+	Size    string `yaml:"size"`    // e.g. "1024x1024", "1536x1024"
+	Quality string `yaml:"quality"` // e.g. "low", "high"
 	MaxTags int    `yaml:"max_tags"`
 }
 
@@ -48,6 +57,6 @@ type PipelineDefaults struct {
 type StageConfig struct {
 	Name       string `yaml:"name"`
 	Output     string `yaml:"output"`      // "text" or "image"
-	Prompt     string `yaml:"prompt"`       // path to prompt file
+	Prompt     string `yaml:"prompt"`      // path to prompt file
 	ImageInput string `yaml:"image_input"` // "_source" or stage name
 }
