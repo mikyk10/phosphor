@@ -64,8 +64,11 @@ func newWebRunCommand() *cobra.Command {
 				return fmt.Errorf("auto-migrate: %w", err)
 			}
 
+			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+			defer stop()
+
 			repo := store.NewRepository(db)
-			store.StartPruner(cmd.Context(), repo, globalCfg.Database.MaxHistory, store.DefaultPruneInterval)
+			store.StartPruner(ctx, repo, globalCfg.Database.MaxHistory, store.DefaultPruneInterval)
 
 			runner := usecase.NewPipelineRunner(globalCfg, repo)
 			uc := usecase.NewPipelineUsecase(svcCfg, runner, repo)
@@ -84,9 +87,6 @@ func newWebRunCommand() *cobra.Command {
 				ReadTimeout:  5 * time.Minute,
 				WriteTimeout: 5 * time.Minute,
 			}
-
-			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-			defer stop()
 
 			serveErr := make(chan error, 1)
 			go func() {
