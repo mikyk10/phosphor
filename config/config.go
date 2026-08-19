@@ -10,6 +10,9 @@ type GlobalConfig struct {
 		DSN string `yaml:"dsn"`
 	} `yaml:"database"`
 	AI AIConfig `yaml:"ai"`
+	// MaxRequestBodyMB caps the size of a POST body (a source image).
+	// Requests larger than this are rejected with 413.
+	MaxRequestBodyMB int `yaml:"max_request_body_mb"`
 }
 
 // AIConfig holds LLM provider connection details and execution parameters.
@@ -39,8 +42,8 @@ type PipelineConfig struct {
 // PipelineDefaults holds default values for pipeline execution parameters.
 // Request parameters override these when provided.
 type PipelineDefaults struct {
-	Size    string `yaml:"size"`     // e.g. "1024x1024", "1536x1024"
-	Quality string `yaml:"quality"`  // e.g. "low", "high"
+	Size    string `yaml:"size"`    // e.g. "1024x1024", "1536x1024"
+	Quality string `yaml:"quality"` // e.g. "low", "high"
 	MaxTags int    `yaml:"max_tags"`
 }
 
@@ -48,6 +51,6 @@ type PipelineDefaults struct {
 type StageConfig struct {
 	Name       string `yaml:"name"`
 	Output     string `yaml:"output"`      // "text" or "image"
-	Prompt     string `yaml:"prompt"`       // path to prompt file
+	Prompt     string `yaml:"prompt"`      // path to prompt file
 	ImageInput string `yaml:"image_input"` // "_source" or stage name
 }

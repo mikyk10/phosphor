@@ -1,5 +1,6 @@
 port: 8082
 log_level: DEBUG
+max_request_body_mb: 20   # reject POST bodies larger than this (413)
 
 database:
   dsn: ":memory:"           # default: in-memory (stateless)

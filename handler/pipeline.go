@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -13,18 +14,25 @@ import (
 
 type PipelineHandler struct {
 	uc usecase.PipelineUsecase
+	// maxBodyBytes caps how much of a POST body is read. 0 means unlimited.
+	maxBodyBytes int64
 }
 
-func NewPipelineHandler(uc usecase.PipelineUsecase) *PipelineHandler {
-	return &PipelineHandler{uc: uc}
+func NewPipelineHandler(uc usecase.PipelineUsecase, maxBodyBytes int64) *PipelineHandler {
+	return &PipelineHandler{uc: uc, maxBodyBytes: maxBodyBytes}
 }
 
 // Run handles GET|POST /pipeline/:name
 func (h *PipelineHandler) Run(c *echo.Context) error {
 	name := c.Param("name")
 
-	body, err := io.ReadAll(c.Request().Body)
+	body, err := h.readBody(c)
 	if err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			slog.Warn("handler: request body too large", "name", name, "limit_bytes", tooLarge.Limit)
+			return c.JSON(http.StatusRequestEntityTooLarge, map[string]string{"error": "request body too large"})
+		}
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "failed to read request body"})
 	}
 
@@ -73,4 +81,17 @@ func (h *PipelineHandler) Run(c *echo.Context) error {
 	default:
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "unknown output type"})
 	}
+}
+
+// readBody reads the request body, refusing to buffer more than the
+// configured limit so a single oversized POST cannot exhaust memory.
+func (h *PipelineHandler) readBody(c *echo.Context) ([]byte, error) {
+	body := c.Request().Body
+	if body == nil {
+		return nil, nil
+	}
+	if h.maxBodyBytes > 0 {
+		body = http.MaxBytesReader(nil, body, h.maxBodyBytes)
+	}
+	return io.ReadAll(body)
 }

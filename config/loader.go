@@ -71,4 +71,7 @@ func applyDefaults(cfg *GlobalConfig) {
 	if cfg.Database.DSN == "" {
 		cfg.Database.DSN = ":memory:"
 	}
+	if cfg.MaxRequestBodyMB == 0 {
+		cfg.MaxRequestBodyMB = 20
+	}
 }

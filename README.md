@@ -89,6 +89,7 @@ Two YAML files in `config/`:
 ```yaml
 port: 8082
 log_level: DEBUG
+max_request_body_mb: 20   # POST bodies above this are rejected with 413
 
 database:
   dsn: ":memory:"       # in-memory (default) or file path for debug
