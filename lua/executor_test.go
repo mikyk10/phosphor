@@ -31,7 +31,7 @@ func TestHTTPPost_SendsLargePayloadInFull(t *testing.T) {
 			return
 		}
 		gotBody = body
-		fmt.Fprintf(w, "received %d", len(body))
+		_, _ = fmt.Fprintf(w, "received %d", len(body))
 	}))
 	defer srv.Close()
 
