@@ -75,7 +75,7 @@ func newWebRunCommand() *cobra.Command {
 			ph := handler.NewPipelineHandler(uc)
 
 			e := echo.New()
-			route.Configure(e, ph)
+			route.Configure(e, ph, globalCfg.Auth.Token)
 
 			addr := fmt.Sprintf(":%d", globalCfg.Port)
 			slog.Info("server starting", "port", globalCfg.Port, "dsn", globalCfg.Database.DSN,

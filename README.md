@@ -90,6 +90,9 @@ Two YAML files in `config/`:
 port: 8082
 log_level: DEBUG
 
+# auth:
+#   token: "${PHOSPHOR_TOKEN}"   # optional shared token for /pipeline routes
+
 database:
   dsn: ":memory:"       # in-memory (default) or file path for debug
   max_history: 200      # keep only the newest N pipeline executions (-1 disables pruning)
@@ -103,6 +106,12 @@ ai:
       endpoint: https://api.openai.com/v1
       api_key: "${OPENAI_API_KEY}"
 ```
+
+When `auth.token` is set, every `/pipeline` request must present it as an
+`Authorization: Bearer <token>` header or a `?key=<token>` query parameter —
+clients that can only be given a URL (WiSP's HTTP catalog, for example) can
+just append `?key=...`. `/health` is never protected. Leaving `auth.token`
+unset keeps the endpoints open, as before.
 
 ### service.yaml — Pipelines
 

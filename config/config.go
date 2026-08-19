@@ -8,6 +8,15 @@ type GlobalConfig struct {
 	LogLevel slog.Level     `yaml:"log_level"`
 	Database DatabaseConfig `yaml:"database"`
 	AI       AIConfig       `yaml:"ai"`
+	Auth     AuthConfig     `yaml:"auth"`
+}
+
+// AuthConfig holds the optional shared-token protection for pipeline routes.
+type AuthConfig struct {
+	// Token, when non-empty, is required on every /pipeline request as
+	// either an "Authorization: Bearer <token>" header or a ?key=<token>
+	// query parameter. Empty means the endpoints are open.
+	Token string `yaml:"token"`
 }
 
 // DatabaseConfig holds execution-history persistence settings.
