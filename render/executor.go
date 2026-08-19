@@ -101,12 +101,6 @@ var (
 	browserOnce sync.Once
 	browserCtx  context.Context
 	browserErr  error
-
-	// Cancels are deliberately retained (never called) so the allocator and
-	// the browser outlive individual requests. They are released when the
-	// process exits.
-	browserAllocCancel context.CancelFunc
-	browserCancel      context.CancelFunc
 )
 
 // sharedBrowser returns the process-wide chromedp browser context, starting
@@ -123,11 +117,11 @@ func sharedBrowser() (context.Context, error) {
 			opts = append(opts, chromedp.ExecPath(p))
 		}
 
-		var allocCtx context.Context
-		allocCtx, browserAllocCancel = chromedp.NewExecAllocator(context.Background(), opts...)
-
-		var ctx context.Context
-		ctx, browserCancel = chromedp.NewContext(allocCtx)
+		// Both cancel funcs are discarded on purpose: the allocator and the
+		// browser must outlive every individual request and are reclaimed
+		// when the process exits.
+		allocCtx, _ := chromedp.NewExecAllocator(context.Background(), opts...)
+		ctx, _ := chromedp.NewContext(allocCtx)
 
 		// Run with no actions boots the browser so the first real capture
 		// does not pay the startup cost.
