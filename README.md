@@ -57,11 +57,19 @@ curl -o dinner.png "http://localhost:8082/pipeline/dinner?size=800x480"
 ## Quick Start
 
 ```sh
-# 1. Copy config templates
+go run . web run
+```
+
+That is the whole setup: when `config/config.yaml` or `config/service.yaml` is
+absent, phosphor falls back to the `*.yaml.example` file next to it (and logs a
+warning saying so). To customise, copy the templates and edit — a real file
+always wins over the example:
+
+```sh
 cp config/config.yaml.example config/config.yaml
 cp config/service.yaml.example config/service.yaml
 
-# 2. Set your OpenAI API key and run
+# LLM pipelines need a key; the dashboard pipeline does not.
 export OPENAI_API_KEY=sk-...
 go run . web run
 ```
