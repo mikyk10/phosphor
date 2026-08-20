@@ -2,6 +2,10 @@
 phosphor
 tmp/
 
+# air's hot-reload config is part of the dev setup, so keep it tracked even
+# when a global gitignore (a common dotfiles entry) excludes it.
+!.air.toml
+
 # Config (copy from *.example)
 config/config.yaml
 config/service.yaml
