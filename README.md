@@ -84,7 +84,10 @@ curl -o dashboard.png "http://localhost:8082/pipeline/dashboard?size=800x480"
 docker compose up --build
 ```
 
-The Docker image includes Chromium for headless HTML rendering.
+The Docker image includes Chromium for headless HTML rendering. The dev
+container runs [air](https://github.com/air-verse/air) for hot reload, driven
+by `.air.toml` — edits to `.go`, `config.yaml` and `service.yaml` rebuild and
+restart automatically.
 
 ### Releases
 

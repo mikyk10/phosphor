@@ -1,0 +1,29 @@
+# Hot reload for `docker compose up` — the development image's CMD is `air`.
+# Without this file air falls back to its defaults, which run the built binary
+# with no arguments; phosphor then prints its help text and exits, so the
+# server never comes up and the compose healthcheck never turns healthy.
+
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  cmd = "go build -o ./tmp/phosphor ."
+  bin = "./tmp/phosphor"
+  args_bin = ["web", "run"]
+
+  # config.yaml and service.yaml are read at startup, so editing them has to
+  # restart the process. Prompt files are read per request and need no rebuild.
+  include_ext = ["go", "yaml", "yml"]
+  exclude_dir = ["tmp", "docs", ".github"]
+  exclude_regex = ["_test\\.go"]
+  delay = 1000
+  stop_on_error = true
+  kill_delay = "5s"
+
+  # send_interrupt is deliberately left off: air signals the whole process
+  # group, which intermittently takes air itself down mid-session. Reloads
+  # therefore skip the server's shutdown drain — that only costs an in-flight
+  # request locally, whereas a dead watcher costs the whole dev loop.
+
+[misc]
+  clean_on_exit = true
