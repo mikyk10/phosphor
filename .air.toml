@@ -8,8 +8,9 @@ tmp_dir = "tmp"
 
 [build]
   cmd = "go build -o ./tmp/phosphor ."
-  bin = "./tmp/phosphor"
-  args_bin = ["web", "run"]
+  # phosphor's root command has no default action, so the subcommand must be
+  # passed here — this is exactly what air's defaults get wrong.
+  entrypoint = ["./tmp/phosphor", "web", "run"]
 
   # config.yaml and service.yaml are read at startup, so editing them has to
   # restart the process. Prompt files are read per request and need no rebuild.
