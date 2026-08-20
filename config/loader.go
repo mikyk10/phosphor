@@ -1,20 +1,25 @@
 package config
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
+	"log/slog"
 	"os"
 
 	"gopkg.in/yaml.v2"
 )
 
-// Load reads config.yaml and service.yaml from the given directory.
+// Load reads config.yaml and service.yaml from the given directory. Either
+// file may be absent, in which case the shipped .example next to it is used,
+// so a fresh checkout runs without copying anything first.
 func Load(configDir string) (*GlobalConfig, *ServiceConfig, error) {
-	global, err := loadYAML[GlobalConfig](configDir + "/config.yaml")
+	global, err := loadYAMLOrExample[GlobalConfig](configDir + "/config.yaml")
 	if err != nil {
 		return nil, nil, fmt.Errorf("load config.yaml: %w", err)
 	}
 
-	svc, err := loadYAML[ServiceConfig](configDir + "/service.yaml")
+	svc, err := loadYAMLOrExample[ServiceConfig](configDir + "/service.yaml")
 	if err != nil {
 		return nil, nil, fmt.Errorf("load service.yaml: %w", err)
 	}
@@ -26,6 +31,33 @@ func Load(configDir string) (*GlobalConfig, *ServiceConfig, error) {
 	}
 
 	return global, svc, nil
+}
+
+// loadYAMLOrExample reads path, falling back to "<path>.example" when path
+// does not exist. Any other failure (bad permissions, malformed YAML) is
+// reported as-is rather than being papered over with defaults.
+func loadYAMLOrExample[T any](path string) (*T, error) {
+	cfg, err := loadYAML[T](path)
+	if err == nil {
+		return cfg, nil
+	}
+	if !errors.Is(err, fs.ErrNotExist) {
+		return nil, err
+	}
+
+	example := path + ".example"
+	cfg, exampleErr := loadYAML[T](example)
+	if errors.Is(exampleErr, fs.ErrNotExist) {
+		// Neither exists — report the file the caller actually asked for.
+		return nil, err
+	}
+	if exampleErr != nil {
+		return nil, fmt.Errorf("fallback %s: %w", example, exampleErr)
+	}
+
+	slog.Warn("config: file not found, falling back to the example defaults",
+		"missing", path, "using", example)
+	return cfg, nil
 }
 
 func loadYAML[T any](path string) (*T, error) {
