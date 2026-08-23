@@ -9,6 +9,7 @@ import (
 
 	"github.com/mikyk10/phosphor/config"
 	"github.com/mikyk10/phosphor/llm"
+	"github.com/mikyk10/phosphor/metrics"
 	"github.com/mikyk10/phosphor/pipeline"
 	"github.com/mikyk10/phosphor/store"
 )
@@ -22,10 +23,18 @@ type PipelineRunner struct {
 	cfg             *config.GlobalConfig
 	repo            store.Repository
 	executorFactory ExecutorFactory
+	// backoffBase is the unit of the exponential retry backoff
+	// (backoffBase << attempt). Tests shorten it; production keeps 1s.
+	backoffBase time.Duration
 }
 
 func NewPipelineRunner(cfg *config.GlobalConfig, repo store.Repository) *PipelineRunner {
-	return &PipelineRunner{cfg: cfg, repo: repo, executorFactory: llm.NewStageExecutor}
+	return &PipelineRunner{
+		cfg:             cfg,
+		repo:            repo,
+		executorFactory: llm.NewStageExecutor,
+		backoffBase:     time.Second,
+	}
 }
 
 // RunPipelineInput holds the inputs for a pipeline execution.
@@ -49,6 +58,10 @@ func (r *PipelineRunner) RunPipeline(ctx context.Context, input RunPipelineInput
 	maxRetries := r.cfg.AI.MaxRetries
 	if maxRetries <= 0 {
 		maxRetries = 3
+	}
+	backoffBase := r.backoffBase
+	if backoffBase <= 0 {
+		backoffBase = time.Second
 	}
 
 	for i, stage := range input.Stages {
@@ -133,8 +146,16 @@ func (r *PipelineRunner) RunPipeline(ctx context.Context, input RunPipelineInput
 				return nil, ctx.Err()
 			}
 
+			// A rejected prompt, a policy violation or bad credentials will
+			// fail identically every time — and image APIs bill per attempt.
+			if !llm.IsRetryable(execErr) {
+				slog.Warn("pipeline: stage failed, non-retryable, giving up",
+					"stage", stage.Name, "attempt", attempt+1, "err", execErr)
+				break
+			}
+
 			if attempt < maxRetries {
-				backoff := time.Duration(1<<uint(attempt)) * time.Second
+				backoff := time.Duration(1<<uint(attempt)) * backoffBase
 				slog.Warn("pipeline: stage failed, retrying", "stage", stage.Name, "attempt", attempt+1, "err", execErr, "backoff", backoff)
 				select {
 				case <-time.After(backoff):
@@ -165,8 +186,12 @@ func (r *PipelineRunner) RunPipeline(ctx context.Context, input RunPipelineInput
 		if sr.OutputType == "text" {
 			output.ContentText = &sr.Text
 		} else {
-			output.ContentBlob = sr.ImageData
 			output.ContentType = sr.ContentType
+			// Image blobs are the dominant driver of history growth, so they
+			// are only persisted when explicitly enabled.
+			if r.cfg.Database.StoreImageOutputs {
+				output.ContentBlob = sr.ImageData
+			}
 		}
 		if err := r.repo.CreateStepOutput(output); err != nil {
 			slog.Warn("failed to save step output", "stage", stage.Name, "err", err)
@@ -208,6 +233,7 @@ func resolveImageInput(ref string, sourceImage []byte, stageOutputs map[string]l
 }
 
 func (r *PipelineRunner) failStep(step *store.StepExecution, errorCode string, err error) {
+	metrics.ObserveStageFailure(step.StageName, errorCode)
 	step.Status = store.StatusFailed
 	step.ErrorCode = errorCode
 	step.ErrorMessage = err.Error()
@@ -218,6 +244,7 @@ func (r *PipelineRunner) failStep(step *store.StepExecution, errorCode string, e
 }
 
 func (r *PipelineRunner) recordStepFailure(pipelineExecID store.PrimaryKey, stage config.StageConfig, index int, errorCode string, err error) error {
+	metrics.ObserveStageFailure(stage.Name, errorCode)
 	step := &store.StepExecution{
 		PipelineExecutionID: pipelineExecID,
 		StageName:           stage.Name,

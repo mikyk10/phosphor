@@ -28,6 +28,12 @@ Generates and transforms images through configurable multi-stage pipelines. Each
 | `/pipeline/:name` | GET | Execute a named pipeline (no source image) |
 | `/pipeline/:name` | POST | Execute a named pipeline (body: source image) |
 | `/health` | GET | Health check |
+| `/metrics` | GET | Prometheus metrics |
+
+`/metrics` exposes `phosphor_pipeline_executions_total{pipeline,status}`,
+`phosphor_pipeline_duration_seconds{pipeline}` and
+`phosphor_stage_failures_total{stage,error_code}` alongside the standard Go
+runtime collectors.
 
 ### Query Parameters
 
@@ -57,11 +63,19 @@ curl -o dinner.png "http://localhost:8082/pipeline/dinner?size=800x480"
 ## Quick Start
 
 ```sh
-# 1. Copy config templates
+go run . web run
+```
+
+That is the whole setup: when `config/config.yaml` or `config/service.yaml` is
+absent, phosphor falls back to the `*.yaml.example` file next to it (and logs a
+warning saying so). To customise, copy the templates and edit — a real file
+always wins over the example:
+
+```sh
 cp config/config.yaml.example config/config.yaml
 cp config/service.yaml.example config/service.yaml
 
-# 2. Set your OpenAI API key and run
+# LLM pipelines need a key; the dashboard pipeline does not.
 export OPENAI_API_KEY=sk-...
 go run . web run
 ```
@@ -78,7 +92,21 @@ curl -o dashboard.png "http://localhost:8082/pipeline/dashboard?size=800x480"
 docker compose up --build
 ```
 
-The Docker image includes Chromium for headless HTML rendering.
+The Docker image includes Chromium for headless HTML rendering. The dev
+container runs [air](https://github.com/air-verse/air) for hot reload, driven
+by `.air.toml` — edits to `.go`, `config.yaml` and `service.yaml` rebuild and
+restart automatically.
+
+### Releases
+
+Pushing a semver tag publishes a versioned image to GHCR:
+
+```sh
+git tag v0.2.0 && git push origin v0.2.0
+# -> ghcr.io/mikyk10/phosphor:0.2.0 and :0.2
+```
+
+`latest` continues to track `main`.
 
 ## Configuration
 
@@ -89,9 +117,16 @@ Two YAML files in `config/`:
 ```yaml
 port: 8082
 log_level: DEBUG
+max_request_body_mb: 20   # POST bodies above this are rejected with 413
+max_concurrent_pipelines: 4   # simultaneous pipeline executions (0 = unlimited)
+
+# auth:
+#   token: "${PHOSPHOR_TOKEN}"   # optional shared token for /pipeline routes
 
 database:
   dsn: ":memory:"       # in-memory (default) or file path for debug
+  max_history: 200      # keep only the newest N pipeline executions (-1 disables pruning)
+  store_image_outputs: false  # persist generated image blobs in the history DB
 
 ai:
   request_timeout_sec: 120
@@ -101,6 +136,12 @@ ai:
       endpoint: https://api.openai.com/v1
       api_key: "${OPENAI_API_KEY}"
 ```
+
+When `auth.token` is set, every `/pipeline` request must present it as an
+`Authorization: Bearer <token>` header or a `?key=<token>` query parameter —
+clients that can only be given a URL (WiSP's HTTP catalog, for example) can
+just append `?key=...`. `/health` is never protected. Leaving `auth.token`
+unset keeps the endpoints open, as before.
 
 ### service.yaml — Pipelines
 
@@ -219,6 +260,8 @@ return json.encode({
 
 Render stages take HTML (inline or from a file path) and capture a PNG screenshot via headless Chrome. The viewport size is controlled by the `size` parameter.
 
+A single headless Chrome process is shared by the whole service (each render is just a new tab), and concurrent renders are capped at 2 — override with the `RENDER_MAX_CONCURRENT` environment variable.
+
 Previous stage outputs are available as template variables:
 
 ```html
@@ -275,6 +318,12 @@ render/      HTML → PNG via headless Chrome (chromedp)
   ↓
 store/       Execution history (SQLite, in-memory default)
 ```
+
+Execution history is trimmed in-process: a background pruner keeps only the
+newest `database.max_history` pipeline executions (and their steps/outputs),
+running once at startup and every 5 minutes thereafter. Generated image blobs
+are not persisted unless `database.store_image_outputs` is enabled, since the
+default DSN is in-memory and blobs would otherwise grow RAM without bound.
 
 ## License
 

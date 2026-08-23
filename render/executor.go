@@ -3,12 +3,12 @@ package render
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"html/template"
 	"log/slog"
 	"os"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/chromedp/cdproto/emulation"
@@ -37,9 +37,9 @@ func NewExecutor(size string) (*Executor, error) {
 // Execute renders the prompt as HTML content and captures a full-page screenshot.
 // If the prompt string does not contain HTML tags, it is treated as a file path.
 func (e *Executor) Execute(ctx context.Context, prompt string, _ [][]byte) (*pipeline.StageResult, error) {
-	html, err := renderHTML(prompt, nil)
+	html, err := loadHTML(prompt)
 	if err != nil {
-		return nil, fmt.Errorf("render html: %w", err)
+		return nil, fmt.Errorf("load html: %w", err)
 	}
 
 	png, err := e.capture(ctx, html)
@@ -56,65 +56,123 @@ func (e *Executor) Execute(ctx context.Context, prompt string, _ [][]byte) (*pip
 	}, nil
 }
 
-// templateFuncs provides helper functions available in HTML templates.
-var templateFuncs = template.FuncMap{
-	"json": func(s string) (map[string]any, error) {
-		var m map[string]any
-		if err := json.Unmarshal([]byte(s), &m); err != nil {
-			return nil, fmt.Errorf("json parse: %w", err)
-		}
-		return m, nil
-	},
+// loadHTML returns the HTML to capture. If the content contains no "<" it is
+// treated as a path to an HTML file, otherwise it is the markup itself.
+//
+// The content is used verbatim: the pipeline runner already expanded it as a
+// text/template before the stage ran, so template syntax has been resolved by
+// the time it gets here.
+func loadHTML(content string) (string, error) {
+	if strings.Contains(content, "<") {
+		return content, nil
+	}
+
+	raw, err := os.ReadFile(content)
+	if err != nil {
+		return "", fmt.Errorf("load template %s: %w", content, err)
+	}
+	return string(raw), nil
 }
 
-// renderHTML loads an HTML template and executes it with the provided data.
-// If the content does not contain HTML tags, it is treated as a file path.
-// The data map is available as template variables (e.g. {{.key}}).
-func renderHTML(content string, data map[string]any) (string, error) {
-	if !strings.Contains(content, "<") {
-		raw, err := os.ReadFile(content)
-		if err != nil {
-			return "", fmt.Errorf("load template %s: %w", content, err)
+// A single headless Chrome process is shared by the whole service: starting
+// one costs 1-2 seconds and several tens of MB, which is far too expensive to
+// pay per request. Each capture only opens a new tab on the shared browser.
+var (
+	browserOnce sync.Once
+	browserCtx  context.Context
+	browserErr  error
+)
+
+// sharedBrowser returns the process-wide chromedp browser context, starting
+// Chrome on first use.
+func sharedBrowser() (context.Context, error) {
+	browserOnce.Do(func() {
+		opts := append(chromedp.DefaultExecAllocatorOptions[:],
+			chromedp.Flag("hide-scrollbars", true),
+			chromedp.Flag("force-device-scale-factor", "1"),
+		)
+
+		// Use CHROME_PATH if set (e.g. /opt/chrome/chrome-headless-shell in Docker).
+		if p := os.Getenv("CHROME_PATH"); p != "" {
+			opts = append(opts, chromedp.ExecPath(p))
 		}
-		content = string(raw)
-	}
 
-	tmpl, err := template.New("page").Funcs(templateFuncs).Parse(content)
-	if err != nil {
-		return "", fmt.Errorf("parse html template: %w", err)
-	}
+		// Both cancel funcs are discarded on purpose: the allocator and the
+		// browser must outlive every individual request and are reclaimed
+		// when the process exits.
+		allocCtx, _ := chromedp.NewExecAllocator(context.Background(), opts...)
+		ctx, _ := chromedp.NewContext(allocCtx)
 
-	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, data); err != nil {
-		return "", fmt.Errorf("execute html template: %w", err)
-	}
+		// Run with no actions boots the browser so the first real capture
+		// does not pay the startup cost.
+		if err := chromedp.Run(ctx); err != nil {
+			browserErr = fmt.Errorf("start headless chrome: %w", err)
+			return
+		}
+		browserCtx = ctx
+		slog.Info("render: headless chrome started", "max_concurrent", maxConcurrent())
+	})
+	return browserCtx, browserErr
+}
 
-	return buf.String(), nil
+// defaultMaxConcurrent is the number of simultaneous renders allowed when
+// RENDER_MAX_CONCURRENT is unset. Each concurrent render is a live Chrome tab.
+const defaultMaxConcurrent = 2
+
+var (
+	semOnce sync.Once
+	sem     chan struct{}
+)
+
+func maxConcurrent() int {
+	if v := os.Getenv("RENDER_MAX_CONCURRENT"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return n
+		}
+		slog.Warn("render: ignoring invalid RENDER_MAX_CONCURRENT", "value", v)
+	}
+	return defaultMaxConcurrent
+}
+
+// acquireSlot blocks until a render slot is free, returning a release func.
+// It gives up if ctx is cancelled while waiting.
+func acquireSlot(ctx context.Context) (func(), error) {
+	semOnce.Do(func() { sem = make(chan struct{}, maxConcurrent()) })
+
+	select {
+	case sem <- struct{}{}:
+		return func() { <-sem }, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
 
 func (e *Executor) capture(ctx context.Context, html string) ([]byte, error) {
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.WindowSize(e.width, e.height),
-		chromedp.Flag("hide-scrollbars", true),
-		chromedp.Flag("force-device-scale-factor", "1"),
-	)
+	release, err := acquireSlot(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
 
-	// Use CHROME_PATH if set (e.g. /opt/chrome/chrome-headless-shell in Docker).
-	if p := os.Getenv("CHROME_PATH"); p != "" {
-		opts = append(opts, chromedp.ExecPath(p))
+	browser, err := sharedBrowser()
+	if err != nil {
+		return nil, err
 	}
 
-	allocCtx, allocCancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer allocCancel()
+	// A new tab on the shared browser, not a new browser.
+	tabCtx, tabCancel := chromedp.NewContext(browser)
+	defer tabCancel()
 
-	taskCtx, taskCancel := chromedp.NewContext(allocCtx)
-	defer taskCancel()
+	// The tab hangs off the browser rather than off ctx, so propagate
+	// cancellation of the request explicitly.
+	stopWatch := context.AfterFunc(ctx, tabCancel)
+	defer stopWatch()
 
-	taskCtx, timeoutCancel := context.WithTimeout(taskCtx, 30*time.Second)
+	tabCtx, timeoutCancel := context.WithTimeout(tabCtx, 30*time.Second)
 	defer timeoutCancel()
 
 	var buf []byte
-	if err := chromedp.Run(taskCtx,
+	if err := chromedp.Run(tabCtx,
 		chromedp.ActionFunc(func(ctx context.Context) error {
 			return emulation.SetDeviceMetricsOverride(int64(e.width), int64(e.height), 1.0, false).Do(ctx)
 		}),

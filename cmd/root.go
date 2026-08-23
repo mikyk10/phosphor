@@ -1,10 +1,14 @@
 package cmd
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/labstack/echo/v5"
@@ -31,6 +35,11 @@ func Execute(args []string) {
 	}
 }
 
+// shutdownTimeout bounds how long in-flight pipeline requests may finish
+// after a shutdown signal. Pipelines call paid LLM APIs, so cutting them off
+// mid-flight wastes money and leaves `running` rows behind in the history DB.
+const shutdownTimeout = 30 * time.Second
+
 func newWebRunCommand() *cobra.Command {
 	configDir := "./config"
 
@@ -55,13 +64,18 @@ func newWebRunCommand() *cobra.Command {
 				return fmt.Errorf("auto-migrate: %w", err)
 			}
 
+			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+			defer stop()
+
 			repo := store.NewRepository(db)
+			store.StartPruner(ctx, repo, globalCfg.Database.MaxHistory, store.DefaultPruneInterval)
+
 			runner := usecase.NewPipelineRunner(globalCfg, repo)
-			uc := usecase.NewPipelineUsecase(svcCfg, runner, repo)
-			ph := handler.NewPipelineHandler(uc)
+			uc := usecase.NewPipelineUsecase(svcCfg, runner, repo, globalCfg.MaxConcurrentPipelines)
+			ph := handler.NewPipelineHandler(uc, int64(globalCfg.MaxRequestBodyMB)<<20)
 
 			e := echo.New()
-			route.Configure(e, ph)
+			route.Configure(e, ph, globalCfg.Auth.Token)
 
 			addr := fmt.Sprintf(":%d", globalCfg.Port)
 			slog.Info("server starting", "port", globalCfg.Port, "dsn", globalCfg.Database.DSN,
@@ -73,7 +87,42 @@ func newWebRunCommand() *cobra.Command {
 				ReadTimeout:  5 * time.Minute,
 				WriteTimeout: 5 * time.Minute,
 			}
-			return s.ListenAndServe()
+
+			serveErr := make(chan error, 1)
+			go func() {
+				if err := s.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+					serveErr <- err
+					return
+				}
+				serveErr <- nil
+			}()
+
+			select {
+			case err := <-serveErr:
+				return err
+			case <-ctx.Done():
+			}
+
+			// Stop listening for signals so a second Ctrl-C aborts immediately
+			// instead of being swallowed by the shutdown wait.
+			stop()
+			slog.Info("server shutting down", "grace_period", shutdownTimeout)
+
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+			defer cancel()
+
+			if err := s.Shutdown(shutdownCtx); err != nil {
+				slog.Error("server shutdown failed, closing connections", "err", err)
+				return err
+			}
+
+			// ListenAndServe has returned by now; surface anything unexpected.
+			if err := <-serveErr; err != nil {
+				return err
+			}
+
+			slog.Info("server stopped")
+			return nil
 		},
 	}
 

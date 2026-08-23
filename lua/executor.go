@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/mikyk10/phosphor/pipeline"
@@ -94,7 +95,7 @@ func httpLoader(L *lua.LState) int {
 func doHTTP(ctx context.Context, method, url, contentType, payload string) (string, error) {
 	var body io.Reader
 	if payload != "" {
-		body = io.NopCloser(io.Reader(stringReader(payload)))
+		body = strings.NewReader(payload)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, method, url, body)
@@ -120,11 +121,4 @@ func doHTTP(ctx context.Context, method, url, contentType, payload string) (stri
 		return "", err
 	}
 	return string(data), nil
-}
-
-type stringReader string
-
-func (s stringReader) Read(p []byte) (int, error) {
-	n := copy(p, s)
-	return n, io.EOF
 }

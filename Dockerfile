@@ -43,10 +43,25 @@ RUN apt-get update \
        chromium \
        fonts-noto-cjk \
     && rm -rf /var/lib/apt/lists/*
-ENV CHROME_PATH=/usr/bin/chromium
 
-COPY --from=builder /app/phosphor .
-COPY config config
+# Chromium's own sandbox needs to create a user namespace, which Docker's
+# default seccomp profile denies to an unprivileged process — and chromedp
+# does not pass --no-sandbox itself. Launch Chromium through a wrapper that
+# adds the flag, so the container stays the isolation boundary and only this
+# image is affected (a local `go run` keeps Chromium's sandbox).
+RUN printf '#!/bin/sh\nexec /usr/bin/chromium --no-sandbox "$@"\n' > /usr/local/bin/chromium-wrapper \
+    && chmod 0755 /usr/local/bin/chromium-wrapper
+ENV CHROME_PATH=/usr/local/bin/chromium-wrapper
+
+# Run as an unprivileged user. HOME must be writable: Chromium writes its
+# profile there.
+RUN useradd --system --create-home --uid 10001 phosphor
+ENV HOME=/home/phosphor
+
+COPY --from=builder --chown=phosphor:phosphor /app/phosphor .
+COPY --chown=phosphor:phosphor config config
+
+USER phosphor
 
 ENTRYPOINT ["./phosphor"]
 CMD ["web", "run"]

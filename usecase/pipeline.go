@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -10,9 +11,14 @@ import (
 	"unicode"
 
 	"github.com/mikyk10/phosphor/config"
+	"github.com/mikyk10/phosphor/metrics"
 	"github.com/mikyk10/phosphor/pipeline"
 	"github.com/mikyk10/phosphor/store"
 )
+
+// ErrPipelineNotFound is returned when the requested pipeline is not defined
+// in service.yaml. Handlers map it to 404.
+var ErrPipelineNotFound = errors.New("pipeline not found")
 
 type PipelineUsecase interface {
 	Run(ctx context.Context, input PipelineInput) (*PipelineOutput, error)
@@ -38,10 +44,32 @@ type pipelineUsecase struct {
 	svcCfg *config.ServiceConfig
 	runner *PipelineRunner
 	repo   store.Repository
+	// sem bounds concurrent executions. nil means unlimited.
+	sem chan struct{}
 }
 
-func NewPipelineUsecase(svcCfg *config.ServiceConfig, runner *PipelineRunner, repo store.Repository) PipelineUsecase {
-	return &pipelineUsecase{svcCfg: svcCfg, runner: runner, repo: repo}
+// NewPipelineUsecase builds the usecase. maxConcurrent bounds how many
+// pipelines may execute simultaneously; <= 0 disables the limit.
+func NewPipelineUsecase(svcCfg *config.ServiceConfig, runner *PipelineRunner, repo store.Repository, maxConcurrent int) PipelineUsecase {
+	u := &pipelineUsecase{svcCfg: svcCfg, runner: runner, repo: repo}
+	if maxConcurrent > 0 {
+		u.sem = make(chan struct{}, maxConcurrent)
+	}
+	return u
+}
+
+// acquire waits for an execution slot, returning a release func. It gives up
+// if the caller disconnects while queued rather than piling up waiters.
+func (u *pipelineUsecase) acquire(ctx context.Context) (func(), error) {
+	if u.sem == nil {
+		return func() {}, nil
+	}
+	select {
+	case u.sem <- struct{}{}:
+		return func() { <-u.sem }, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
 
 func (u *pipelineUsecase) Run(ctx context.Context, input PipelineInput) (*PipelineOutput, error) {
@@ -51,7 +79,7 @@ func (u *pipelineUsecase) Run(ctx context.Context, input PipelineInput) (*Pipeli
 
 	pipelineCfg, ok := u.svcCfg.Pipelines[input.PipelineName]
 	if !ok {
-		return nil, fmt.Errorf("pipeline %q not found", input.PipelineName)
+		return nil, fmt.Errorf("pipeline %q: %w", input.PipelineName, ErrPipelineNotFound)
 	}
 
 	if len(pipelineCfg.Stages) == 0 {
@@ -70,10 +98,23 @@ func (u *pipelineUsecase) Run(ctx context.Context, input PipelineInput) (*Pipeli
 
 	slog.Debug("usecase: pipeline", "name", input.PipelineName, "size", size, "quality", quality, "output", lastStageOutput)
 
+	// Wait for a slot before anything is recorded, so a queued request does
+	// not leave a `running` row behind if the client disconnects.
+	release, err := u.acquire(ctx)
+	if err != nil {
+		slog.Warn("usecase: gave up waiting for an execution slot", "name", input.PipelineName, "err", err)
+		return nil, err
+	}
+	defer release()
+
+	// Timed from here rather than from arrival, so the histogram measures
+	// execution and matches the StartedAt recorded in the history DB.
+	started := time.Now()
+
 	exec := &store.PipelineExecution{
 		PipelineName: input.PipelineName,
 		Status:       store.StatusRunning,
-		StartedAt:    time.Now(),
+		StartedAt:    started,
 	}
 	if err := u.repo.CreatePipelineExecution(exec); err != nil {
 		slog.Warn("failed to record pipeline execution", "err", err)
@@ -100,6 +141,7 @@ func (u *pipelineUsecase) Run(ctx context.Context, input PipelineInput) (*Pipeli
 		if dbErr := u.repo.UpdatePipelineExecution(exec); dbErr != nil {
 			slog.Warn("failed to update pipeline execution", "err", dbErr)
 		}
+		metrics.ObservePipeline(input.PipelineName, metrics.StatusFailed, time.Since(started).Seconds())
 		return nil, err
 	}
 
@@ -108,6 +150,7 @@ func (u *pipelineUsecase) Run(ctx context.Context, input PipelineInput) (*Pipeli
 	if dbErr := u.repo.UpdatePipelineExecution(exec); dbErr != nil {
 		slog.Warn("failed to update pipeline execution", "err", dbErr)
 	}
+	metrics.ObservePipeline(input.PipelineName, metrics.StatusSuccess, time.Since(started).Seconds())
 
 	// Determine response based on last stage output type.
 	switch lastStageOutput {
