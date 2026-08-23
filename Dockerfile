@@ -1,5 +1,5 @@
 # --- Development image ---
-FROM public.ecr.aws/docker/library/golang:1.26.0-bookworm AS development
+FROM public.ecr.aws/docker/library/golang:1.27.0-bookworm AS development
 
 WORKDIR /app
 
