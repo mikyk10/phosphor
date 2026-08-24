@@ -71,6 +71,67 @@ Size is {{.config.Size}}.`)
 	require.Equal(t, "sunny and 24C", *outputs[0].ContentText)
 }
 
+func TestRunPipeline_HistoryLimitExposesPastOutputsToPrompt(t *testing.T) {
+	dir := t.TempDir()
+	stage := writePrompt(t, dir, "quote.md", `---
+provider: test
+model: m1
+---
+Avoid repeating any of:
+{{range .history}}- {{.}}
+{{end}}`)
+
+	repo := &fakeRepo{history: map[string][]string{
+		"proverb-text": {"newest quote", "older quote"},
+	}}
+	factory := &stubFactory{execs: []*fakeExecutor{
+		{script: []scriptedResult{textResult("a fresh quote")}},
+	}}
+	runner := newTestRunner(t, repo, factory, 3)
+
+	_, err := runner.RunPipeline(context.Background(), RunPipelineInput{
+		PipelineExecID: 1,
+		PipelineName:   "proverbs",
+		Stages: []config.StageConfig{
+			{Name: "proverb-text", Output: "text", Prompt: stage, HistoryLimit: 2},
+		},
+	})
+	require.NoError(t, err)
+
+	calls := factory.execs[0].calls()
+	require.Len(t, calls, 1)
+	require.Contains(t, calls[0], "- newest quote")
+	require.Contains(t, calls[0], "- older quote")
+}
+
+func TestRunPipeline_ZeroHistoryLimitSkipsLookup(t *testing.T) {
+	dir := t.TempDir()
+	stage := writePrompt(t, dir, "quote.md", `---
+provider: test
+model: m1
+---
+History count: {{len .history}}`)
+
+	// No "history" key seeded — a lookup would return nothing anyway, but a
+	// non-nil map with content proves whether RecentStepOutputs was called.
+	repo := &fakeRepo{history: map[string][]string{"proverb-text": {"should not appear"}}}
+	factory := &stubFactory{execs: []*fakeExecutor{
+		{script: []scriptedResult{textResult("a fresh quote")}},
+	}}
+	runner := newTestRunner(t, repo, factory, 3)
+
+	_, err := runner.RunPipeline(context.Background(), RunPipelineInput{
+		PipelineExecID: 1,
+		PipelineName:   "proverbs",
+		Stages: []config.StageConfig{
+			{Name: "proverb-text", Output: "text", Prompt: stage}, // HistoryLimit unset
+		},
+	})
+	require.NoError(t, err)
+
+	require.Contains(t, factory.execs[0].calls()[0], "History count: 0")
+}
+
 func TestRunPipeline_NamedStageReference(t *testing.T) {
 	dir := t.TempDir()
 	first := writePrompt(t, dir, "first.md", "generate a noun")

@@ -23,3 +23,8 @@ ai:
       api_key: "${OPENAI_API_KEY}"
     # ollama:
     #   endpoint: http://localhost:11434/v1
+    # Any OpenAI-compatible server works the same way — e.g. llama.cpp's
+    # llama-server (defaults to port 8080, OpenAI routes under /v1):
+    # llama.cpp:
+    #   endpoint: http://localhost:8080/v1
+    #   api_key: "${LLAMACPP_API_KEY}"   # omit if the server has no --api-key set

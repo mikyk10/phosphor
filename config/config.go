@@ -76,4 +76,8 @@ type StageConfig struct {
 	Output     string `yaml:"output"`      // "text" or "image"
 	Prompt     string `yaml:"prompt"`      // path to prompt file
 	ImageInput string `yaml:"image_input"` // "_source" or stage name
+	// HistoryLimit, when > 0, makes the text outputs of this stage's past
+	// successful runs (most recent first) available to its prompt template
+	// as {{.history}}. 0 (the default) looks up nothing.
+	HistoryLimit int `yaml:"history_limit"`
 }

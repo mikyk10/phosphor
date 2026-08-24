@@ -60,6 +60,83 @@ func counts(t *testing.T, db *gorm.DB) (execs, steps, outputs int64) {
 	return
 }
 
+// seedStepOutput creates one pipeline execution with one step and (unless
+// content is nil) one step output, for RecentStepOutputs tests that need
+// distinguishable content, status or scoping per row.
+func seedStepOutput(t *testing.T, repo Repository, pipelineName, stageName string, status ExecutionStatus, content *string) {
+	t.Helper()
+	exec := &PipelineExecution{
+		PipelineName: pipelineName,
+		Status:       StatusSuccess,
+		StartedAt:    time.Now(),
+	}
+	require.NoError(t, repo.CreatePipelineExecution(exec))
+
+	step := &StepExecution{
+		PipelineExecutionID: exec.ID,
+		StageName:           stageName,
+		Status:              status,
+		StartedAt:           time.Now(),
+	}
+	require.NoError(t, repo.CreateStepExecution(step))
+
+	if content != nil {
+		require.NoError(t, repo.CreateStepOutput(&StepOutput{
+			StepExecutionID: step.ID,
+			ContentType:     "text/plain",
+			ContentText:     content,
+		}))
+	}
+}
+
+func strPtr(s string) *string { return &s }
+
+func TestRecentStepOutputs_NewestFirstAndCappedAtLimit(t *testing.T) {
+	db := newTestDB(t)
+	repo := NewRepository(db)
+	for _, q := range []string{"q1", "q2", "q3", "q4", "q5"} {
+		seedStepOutput(t, repo, "proverbs", "proverb-text", StatusSuccess, strPtr(q))
+	}
+
+	got, err := repo.RecentStepOutputs("proverbs", "proverb-text", 3)
+	require.NoError(t, err)
+	require.Equal(t, []string{"q5", "q4", "q3"}, got)
+}
+
+func TestRecentStepOutputs_ScopedByPipelineAndStage(t *testing.T) {
+	db := newTestDB(t)
+	repo := NewRepository(db)
+	seedStepOutput(t, repo, "proverbs", "proverb-text", StatusSuccess, strPtr("proverb-quote"))
+	seedStepOutput(t, repo, "proverbs", "proverb-render", StatusSuccess, strPtr("other-stage"))
+	seedStepOutput(t, repo, "dinner", "proverb-text", StatusSuccess, strPtr("other-pipeline"))
+
+	got, err := repo.RecentStepOutputs("proverbs", "proverb-text", 10)
+	require.NoError(t, err)
+	require.Equal(t, []string{"proverb-quote"}, got)
+}
+
+func TestRecentStepOutputs_ExcludesFailedAndMissingText(t *testing.T) {
+	db := newTestDB(t)
+	repo := NewRepository(db)
+	seedStepOutput(t, repo, "proverbs", "proverb-text", StatusSuccess, strPtr("kept"))
+	seedStepOutput(t, repo, "proverbs", "proverb-text", StatusFailed, strPtr("failed-run"))
+	seedStepOutput(t, repo, "proverbs", "proverb-text", StatusSuccess, nil)
+
+	got, err := repo.RecentStepOutputs("proverbs", "proverb-text", 10)
+	require.NoError(t, err)
+	require.Equal(t, []string{"kept"}, got)
+}
+
+func TestRecentStepOutputs_ZeroLimitReturnsNothing(t *testing.T) {
+	db := newTestDB(t)
+	repo := NewRepository(db)
+	seedStepOutput(t, repo, "proverbs", "proverb-text", StatusSuccess, strPtr("q1"))
+
+	got, err := repo.RecentStepOutputs("proverbs", "proverb-text", 0)
+	require.NoError(t, err)
+	require.Empty(t, got)
+}
+
 func TestPruneExecutions_DeletesOldestAndCascades(t *testing.T) {
 	db := newTestDB(t)
 	repo := NewRepository(db)

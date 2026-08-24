@@ -8,6 +8,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
        chromium \
        fonts-noto-cjk \
+       fonts-noto-core \
     && rm -rf /var/lib/apt/lists/*
 ENV CHROME_PATH=/usr/bin/chromium
 
@@ -42,6 +43,7 @@ RUN apt-get update \
        ca-certificates \
        chromium \
        fonts-noto-cjk \
+       fonts-noto-core \
     && rm -rf /var/lib/apt/lists/*
 
 # Chromium's own sandbox needs to create a user namespace, which Docker's

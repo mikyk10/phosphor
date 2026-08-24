@@ -122,6 +122,7 @@ func (u *pipelineUsecase) Run(ctx context.Context, input PipelineInput) (*Pipeli
 
 	result, err := u.runner.RunPipeline(ctx, RunPipelineInput{
 		PipelineExecID: exec.ID,
+		PipelineName:   input.PipelineName,
 		Stages:         pipelineCfg.Stages,
 		SourceImage:    input.SourceImage,
 		ConfigVars: map[string]any{
