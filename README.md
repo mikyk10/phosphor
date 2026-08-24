@@ -279,6 +279,27 @@ Previous stage outputs are available as template variables:
 | `{{.config.Size}}` | Requested size |
 | `{{.config.Quality}}` | Requested quality |
 | `{{.config.MaxTags}}` | Max tags (tagging only) |
+| `{{.history}}` | This stage's own past text outputs, newest first (see below) |
+
+### Stage History
+
+A stage can see its own past outputs, useful for asking an LLM to avoid repeating itself across runs (the same prompt-only instruction can't do this — each call is stateless). Set `history_limit` on a stage to make its last N *successful* text outputs for that pipeline available as `{{.history}}`:
+
+```yaml
+stages:
+  - name: proverb-text
+    output: text
+    prompt: config/prompts/examples/proverb/text.md
+    history_limit: 30
+```
+
+```
+{{if .history}}Avoid repeating any of these:
+{{range .history}}- {{.}}
+{{end}}{{end}}
+```
+
+History is read from the same execution-history database `database.dsn` already writes to (see [config.yaml](#configyaml--infrastructure)), scoped to that exact pipeline + stage name. It works with the default in-memory database as long as the process keeps running, since executions persist for the process lifetime either way; a restart clears it unless `database.dsn` points at a file.
 
 ## Integration with [WiSP](https://github.com/mikyk10/wisp)
 

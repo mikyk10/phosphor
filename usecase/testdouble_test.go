@@ -35,6 +35,9 @@ type fakeRepo struct {
 	// stepUpdates snapshots each UpdateStepExecution call, so a test can see
 	// the state that was actually written rather than the live pointer.
 	stepUpdates []store.StepExecution
+
+	// history is returned by RecentStepOutputs, keyed by stage name.
+	history map[string][]string
 }
 
 func (r *fakeRepo) CreatePipelineExecution(exec *store.PipelineExecution) error {
@@ -69,6 +72,16 @@ func (r *fakeRepo) CreateStepOutput(out *store.StepOutput) error {
 	defer r.mu.Unlock()
 	r.outputRows = append(r.outputRows, out)
 	return nil
+}
+
+func (r *fakeRepo) RecentStepOutputs(_, stageName string, limit int) ([]string, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	results := r.history[stageName]
+	if limit > 0 && limit < len(results) {
+		results = results[:limit]
+	}
+	return results, nil
 }
 
 func (r *fakeRepo) steps() []*store.StepExecution {

@@ -13,6 +13,10 @@ type Repository interface {
 	// executions along with their steps and outputs. It returns the number
 	// of pipeline executions deleted. keep <= 0 is a no-op.
 	PruneExecutions(keep int) (int64, error)
+	// RecentStepOutputs returns the text outputs of the named stage's most
+	// recent successful runs within the named pipeline, newest first,
+	// capped at limit. limit <= 0 returns no rows.
+	RecentStepOutputs(pipelineName, stageName string, limit int) ([]string, error)
 }
 
 type repositoryImpl struct {
@@ -41,6 +45,28 @@ func (r *repositoryImpl) UpdateStepExecution(step *StepExecution) error {
 
 func (r *repositoryImpl) CreateStepOutput(out *StepOutput) error {
 	return r.db.Create(out).Error
+}
+
+func (r *repositoryImpl) RecentStepOutputs(pipelineName, stageName string, limit int) ([]string, error) {
+	if limit <= 0 {
+		return nil, nil
+	}
+
+	var texts []string
+	err := r.db.Raw(`
+		SELECT so.content_text
+		FROM step_outputs so
+		JOIN step_executions se ON se.id = so.step_execution_id
+		JOIN pipeline_executions pe ON pe.id = se.pipeline_execution_id
+		WHERE pe.pipeline_name = ? AND se.stage_name = ? AND se.status = ?
+			AND so.content_text IS NOT NULL
+		ORDER BY se.id DESC
+		LIMIT ?
+	`, pipelineName, stageName, StatusSuccess, limit).Scan(&texts).Error
+	if err != nil {
+		return nil, err
+	}
+	return texts, nil
 }
 
 func (r *repositoryImpl) PruneExecutions(keep int) (int64, error) {

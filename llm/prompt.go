@@ -39,7 +39,7 @@ const (
 	ApiTypeChat            = "chat"             // chat completion (default)
 	ApiTypeImageGeneration = "image_generation" // /v1/images/generations
 	ApiTypeImageEdit       = "image_edit"       // /v1/images/edits (img2img)
-	ApiTypeRender          = "render"            // HTML template → headless Chrome screenshot
+	ApiTypeRender          = "render"           // HTML template → headless Chrome screenshot
 	ApiTypeLua             = "lua"              // Lua script execution
 )
 
@@ -106,6 +106,9 @@ type TemplateData struct {
 	Prev   StageOutput
 	Stages map[string]StageOutput
 	Config map[string]any
+	// History holds this stage's own past text outputs (most recent first),
+	// when its StageConfig.HistoryLimit is set. Nil when unset.
+	History []string
 }
 
 // RenderPrompt renders a prompt template with the given data.
@@ -119,7 +122,8 @@ func RenderPrompt(body string, data TemplateData) (string, error) {
 		"prev": map[string]any{
 			"output": data.Prev.Text,
 		},
-		"config": data.Config,
+		"config":  data.Config,
+		"history": data.History,
 	}
 
 	stages := make(map[string]any)

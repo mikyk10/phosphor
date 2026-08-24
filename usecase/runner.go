@@ -40,9 +40,10 @@ func NewPipelineRunner(cfg *config.GlobalConfig, repo store.Repository) *Pipelin
 // RunPipelineInput holds the inputs for a pipeline execution.
 type RunPipelineInput struct {
 	PipelineExecID  store.PrimaryKey
+	PipelineName    string // scopes each stage's {{.history}} lookup
 	Stages          []config.StageConfig
-	SourceImage     []byte                // _source image data (may be nil)
-	ConfigVars      map[string]any        // template config variables
+	SourceImage     []byte                   // _source image data (may be nil)
+	ConfigVars      map[string]any           // template config variables
 	ExecutionParams pipeline.ExecutionParams // runtime overrides for size/quality
 }
 
@@ -85,10 +86,22 @@ func (r *PipelineRunner) RunPipeline(ctx context.Context, input RunPipelineInput
 			prev = stageOutputs[input.Stages[i-1].Name]
 		}
 
+		var history []string
+		if stage.HistoryLimit > 0 {
+			history, err = r.repo.RecentStepOutputs(input.PipelineName, stage.Name, stage.HistoryLimit)
+			if err != nil {
+				// A history lookup is a nice-to-have, not load-bearing —
+				// log and proceed with an empty history rather than fail
+				// the whole pipeline over it.
+				slog.Warn("runner: history lookup failed", "stage", stage.Name, "err", err)
+			}
+		}
+
 		renderedPrompt, err := llm.RenderPrompt(prompt.Body, llm.TemplateData{
-			Prev:   prev,
-			Stages: stageOutputs,
-			Config: input.ConfigVars,
+			Prev:    prev,
+			Stages:  stageOutputs,
+			Config:  input.ConfigVars,
+			History: history,
 		})
 		if err != nil {
 			return nil, r.recordStepFailure(input.PipelineExecID, stage, i, "prompt_render_failed", err)

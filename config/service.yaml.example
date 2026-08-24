@@ -65,6 +65,7 @@ pipelines:
       - name: proverb-text
         output: text
         prompt: config/prompts/examples/proverb/text.md
+        history_limit: 30 # avoid repeating recently-picked quotes; see {{.history}} in the prompt
       - name: proverb-render
         output: image
         prompt: config/prompts/examples/proverb/render.md
