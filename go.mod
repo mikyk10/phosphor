@@ -6,7 +6,7 @@ require (
 	github.com/chromedp/cdproto v0.0.0-20260321001828-e3e3800016bc
 	github.com/chromedp/chromedp v0.15.1
 	github.com/glebarez/sqlite v1.11.0
-	github.com/labstack/echo/v5 v5.0.4
+	github.com/labstack/echo/v5 v5.2.0
 	github.com/mozilla-ai/any-llm-go v0.9.0
 	github.com/openai/openai-go v1.12.0
 	github.com/prometheus/client_golang v1.24.1
